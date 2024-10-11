@@ -1,0 +1,305 @@
+---
+title: "0.Preprocessing"
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Load data
+```{r clean data}
+
+bergholz_veg <- read_csv("data/raw/Bergholz et al. 2021/LocalAbundance.csv")
+
+RegionalAbundance <- read_csv("data/raw/Bergholz et al. 2021/RegionalAbundance.csv")
+
+traits <- read_csv("data/raw/Bergholz et al. 2021/traits.csv")
+
+load("~/0. PhD/0. Chapter I/data/processed/try_filtered.RData") 
+```
+
+### 1.2 Preparation original data
+```{r orginal data preparation}
+
+# This is the original species list. Some species names are changed to make it comparable with
+# the TRY database. 
+bergholz_species_list <- RegionalAbundance %>%
+  mutate(Species_long = recode(Species_long, `Achillea millefolium aggr.` = "Achillea millefolium",
+                       `Medicago sativa aggr.` = "Medicago sativa",
+                       `Arrhenaterum elatius` = "Arrhenatherum elatius")) %>%
+  select(-c(Abundance))
+
+species_list <- bergholz_species_list %>% pull(Species_long)
+
+try_species_names <- try_filtered %>%
+  filter(SpeciesName %in% c(species_list)) %>%
+  filter(LastName != "Bergholz") %>%
+  select(c(AccSpeciesName, SpeciesName)) %>%
+  distinct()
+
+# Some species have no presence in any of the plots. They are filtered out. 
+# The original vegetation data contains species codes instead of actual species names
+# Some original species name are not within the accepted species list but do have a match with the 
+# SpeciesNames column 
+
+bergholz_veg <- bergholz_veg %>% 
+  select_if(~ !is.numeric(.) || sum(.) != 0) %>% # The code evaluates whether a column is numeric, if it is, the second statement is evaluated. 
+  pivot_longer(cols = 2:ncol(.), names_to = "Species_short", values_to = "cover") %>%
+  left_join(bergholz_species_list) %>%
+  rename(SpeciesName = Species_long) %>% 
+  left_join(try_species_names) %>%
+  select(-c(Species_short, SpeciesName)) %>%
+  pivot_wider(names_from = AccSpeciesName, values_from = cover) %>%
+  column_to_rownames(var = "plot") %>% 
+  select(order(colnames(.))) 
+
+# In the study
+# The species Anthemis tinctoria has no trait data for the SLA. Instead, the family average is taken based on available data. 
+traits_clean <- traits %>%
+  select(c(site, spec_name, SLA, LDMC, Height)) %>%
+  rename(Species_short = spec_name) %>%
+  group_by(Species_short) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  ungroup() %>%
+  mutate_all(~ifelse(is.nan(.), NA, .)) %>%
+  left_join(bergholz_species_list) %>%
+  rename(SpeciesName = Species_long) %>%
+  left_join(try_species_names) %>%
+  rename(Name = AccSpeciesName) %>%
+  select(-c(Species_short, SpeciesName)) %>%
+  arrange(Name) 
+
+# To do so, the species list is extracted. This is used to pull up the hierarchical information using the lookup_table function.
+
+species_list <- colnames(bergholz_veg)
+
+
+hierarchy <- lookup_table(species_list, by_species=TRUE, 
+                          family.tax = "plantlist", missing_action = "drop") %>%
+  rownames_to_column(var = "Species_long") %>%
+  arrange(Species_long) %>%
+  rowid_to_column("plant_id") %>%
+  rename(Name = Species_long) %>%
+  full_join(traits_clean) %>%
+  filter(Name %in% colnames(bergholz_veg))
+
+family_mean <- hierarchy %>%
+  select(c(Name, genus, family, SLA )) %>%
+  group_by(family) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  filter(family == "Compositae") %>% # The familiy of the missing species
+  pull(SLA) 
+
+bergholz_trait <- hierarchy %>%
+  select(Name, Height, LDMC, SLA) %>%
+  replace_na(list(SLA = family_mean)) %>%
+  arrange(Name) 
+
+bergholz_trait_fd <- bergholz_trait %>%
+  column_to_rownames(var = "Name") 
+
+# Standardizing the traits is done after the trait_fd dataframe is created to avoid standardizing twice
+bergholz_trait <- bergholz_trait %>%
+  mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+
+traitlist <- c("Height", "LDMC", "SLA")
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+bergholz_species_final <- colnames(bergholz_veg)
+
+
+
+``` 
+
+### 1.2 Try data
+```{r try data}
+
+# filter the try dataset so it only contains the species present in the Bergholz dataset
+# and the necessary trait data (18-3107-3106 = height, 47 = LDMC, 3117 = SLA)
+try_trait <- try_filtered %>%
+  filter(AccSpeciesName %in% c(bergholz_species_final)) %>%
+  filter(LastName != "Bergholz") %>%
+  filter(TraitID %in% c(18, 3117, 3107, 3106, 47)) 
+
+
+
+# 
+tmp_unfiltered <- rtry_explore(try_trait, DataID, DataName, AccSpeciesName, TraitID, TraitName, sortBy = TraitID)
+
+tmp <- tmp_unfiltered %>%
+  group_by(TraitID, DataName) %>%
+  count(DataID) # based on the count data, select the following DataID's:
+
+try_trait2 <- try_trait %>%
+  filter(DataID %in% c(258, 6584, 19)) # LDMC = 258, SLA = 6584, 19 = Height
+
+
+try_trait2 <- rtry_select_col(try_trait2, ObservationID, AccSpeciesID, AccSpeciesName, TraitID, TraitName, StdValue, UnitName)
+
+try_wide <- rtry_trans_wider(try_trait2, names_from = c(TraitID, TraitName, UnitName), values_from = c(StdValue), values_fn = list(StdValue = mean)) %>%
+  select(-c(ObservationID, AccSpeciesID)) %>%
+  group_by(AccSpeciesName) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = TRUE))) %>%
+  ungroup() %>%
+  mutate_all(~ifelse(is.nan(.), NA, .)) %>%
+  rename("LDMC" = `47_Leaf dry mass per leaf fresh mass (leaf dry matter content, LDMC)_g/g`,
+         "SLA" = `3117_Leaf area per leaf dry mass (specific leaf area, SLA or 1/LMA): undefined if petiole is in- or excluded_mm2 mg-1`,
+         "Height" = `3106_Plant height vegetative_m`)
+
+
+# check if no other variation of the missing traits has trait data 
+check <- try_trait %>%
+  filter(AccSpeciesName == "Dianthus carthusianorum") # no data for LDMC
+
+check <- try_trait %>%
+  filter(AccSpeciesName == "Senecio jacobea") ## no data for LDMC and height
+
+# calculate the genus mean for the following species-trait combinations
+dianthus_LDMC <- calculate_genusmean("Dianthus", 258)
+senecio_LDMC <- calculate_genusmean("Senecio", 258)
+senecio_height <- calculate_genusmean("Senecio", 19)
+
+# substitute NA's with genus means
+bergholz_trait_try <- try_wide %>%
+  mutate(LDMC = case_when(is.na(LDMC) & AccSpeciesName == "Dianthus carthusianorum" ~ dianthus_LDMC,
+                             is.na(LDMC) & AccSpeciesName == "Senecio jacobea" ~ senecio_LDMC,
+                             TRUE ~ LDMC)) %>%
+  mutate(Height = case_when(is.na(Height) & AccSpeciesName == "Senecio jacobea" ~ senecio_height,
+                            TRUE ~ Height)) %>%
+  select(order(colnames(.))) %>%
+  arrange(AccSpeciesName) %>%
+  rename(Name = AccSpeciesName)
+
+bergholz_trait_try_fd <- bergholz_trait_try %>%
+  column_to_rownames(var = "Name") 
+
+# Standardizing the traits is done after the trait_fd dataframe is created to avoid standardizing twice
+bergholz_trait_try <- bergholz_trait_try %>%
+  mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+
+
+############# regional coverage test
+
+regional_trait_coverage <- bergholz_veg %>%
+  summarise(across(where(is.numeric), ~ sum(.))) %>%
+  t() %>%
+  as.data.frame() %>%
+  mutate(Total_cover = rowSums(.)) %>%
+  select(Total_cover) %>%
+  dplyr::filter(Total_cover != 0) %>%
+  mutate(Relative_meta_cover = Total_cover / sum(Total_cover)) %>%
+  rownames_to_column(var = "Name") %>%
+  filter(Name %in% bergholz_trait$Name) %>%
+  select(Name, Relative_meta_cover) %>%
+  summarise(across(where(is.numeric), ~sum(.))) %>%
+  pull(Relative_meta_cover)
+  
+
+```
+
+## 2. Perform calculations
+```{r calculations }
+
+bergholz_processed_orig <- cats_preparation(input_veg = bergholz_veg, input_trait = bergholz_trait, cutoff_value =  0.8, trait_information = trait_information,
+                                                  trait_detail = "Study")
+
+bergholz_processed_try <- cats_preparation(input_veg = bergholz_veg, input_trait = bergholz_trait_try, cutoff_value =  0.8, trait_information = trait_information,
+                                                  trait_detail = "Study")
+view(calculate_diversity_info())
+diversity_info <-   calculate_diversity_info(veg_data = bergholz_veg, input_processed = bergholz_processed_orig, 
+                                    trait_fd = bergholz_trait_fd, trait_try_fd = bergholz_trait_try_fd, 
+                                    trait_detail = "Study", study_name = "Bergholz")
+
+
+orig_cats <- cats_calculations(bergholz_processed_orig, trait_information,
+                                   trait_detail = "Study") %>%
+  mutate(study = "Bergholz",
+         trait_source = "Original")
+
+
+try_cats <- cats_calculations(bergholz_processed_try, trait_information,
+                                   trait_detail = "Study") %>%
+  mutate(study = "Bergholz",
+         trait_source = "TRY")
+
+bergholz_calculations <- lst(bergholz_processed_orig, bergholz_processed_try, 
+                       diversity_info, orig_cats, try_cats)
+
+save(bergholz_calculations,
+  file = "data/processed/bergholz_calculations.RData")
+
+```
+
+
+## 3. CATS calculations
+```{r cats calculations}
+
+#Determines amount of cores, substract four to keep to pc free for other processes.
+n_cores <- parallel::detectCores() - 4 
+
+my_cluster <- makeSOCKcluster(n_cores)
+
+registerDoSNOW(cl = my_cluster)
+
+foreach::getDoParRegistered() # check if cluster is set up
+
+
+bergholz_orig_cats <- cats_calculations(bergholz_processed_specieslvl, trait_information,
+                                   trait_detail = "Study") %>%
+  mutate(study = "Bergholz",
+         trait_source = "Original")
+
+bergholz_figure_orig <- cats_visualisation(bergholz_orig_cats) %>%
+  mutate(study = "Bergholz")
+
+bergholz_figure_try <- cats_visualisation(bergholz_try_cats) %>%
+  mutate(study = "Bergholz")
+
+save(bergholz_processed_specieslvl, bergholz_figure, bergholz_species_list, bergholz_cats,
+  file = "data/processed/bergholz_calculations.RData")
+
+ggplot(bergholz_figure_try, aes(x = species_richness, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Bergholz et al. 2020",
+       x = "Species richness") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  ))
+
+ggplot(bergholz_figure, aes(x = mean_dist, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between plot dissimilarity and the CATS decomposition - Bergholz et al. 2020", x = "Average Bray-Curtis index value") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1.1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+```

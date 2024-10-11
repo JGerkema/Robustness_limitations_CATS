@@ -1,0 +1,198 @@
+---
+title: "3. Complete analysis Eallonardo et al."
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Eallonardo et al. 2012
+```{r clean data}
+
+eallonardo_veg_info <- read_excel("data/raw/CESTES/Plant_data/Eallonardo2013_AJ.xlsx", 
+    sheet = "commfull") %>%
+    rename(Plot_code = Sites_code) %>%
+    select(c(Site, Plot_code, `T`))
+
+eallonardo_species_list <- read_excel("data/raw/CESTES/Plant_data/Eallonardo2013_AJ.xlsx", 
+  sheet = "splist") %>%
+  rename(Sp = TaxCode, Name = FullName) %>%
+  mutate(Name = recode(Name, "Asclepias syracia" = "Asclepias syriaca",
+                       "Asparagus officicianalis" = "Asparagus officinalis",
+                       "Aster laterflorus" = "Aster lateriflorus",
+                       "Astriplex patula" = "Atriplex patula",
+                       "Bohmeria cylindrica" = "Boehmeria cylindrica",
+                       "Isis pseudacorus" = "Iris pseudacorus",
+                       "Leptochlos fusca fascicularis" = "Leptochloa fusca subsp. fascicularis",
+                       "Phragmites communis - native" = "Phragmites communis",
+                       "Phragmites communis - non native" = "Phragmites communis",
+                       "Physalis heterophyllum" = "Physalis heterophylla",
+                       "Polygnum hydropiperoides" = "Polygonum hydropiperoides",
+                       "Polygonum amphibinum" = "Polygonum amphibium",
+                       "Sauruus cernuus" = "Saururus cernuus",
+                       "Tecrium canadense" = "Teucrium canadense",
+                       "Typha x glauca" = "Typha glauca"))
+
+
+eallonardo_veg <- read_excel("data/raw/CESTES/Plant_data/Eallonardo2013_AJ.xlsx", 
+    sheet = "commfull") %>%
+    select(-c(`T`, P, NS, EW, Site, Sites_nr)) %>%
+    pivot_longer(cols = 2:ncol(.), names_to = "Taxon", values_to = "cover") %>%
+    left_join(eallonardo_species_list) %>%
+    select(-c(Taxon, Sp)) %>%
+    group_by(Name, Sites_code) %>%
+    summarise(across(where(is.numeric), ~sum(.))) %>%
+    ungroup() %>%
+    pivot_wider(values_from = cover, names_from = Name) %>%
+    column_to_rownames(var = "Sites_code" ) %>%
+    select(order(colnames(.)))
+    
+relative_cover_check <- rowSums(eallonardo_veg) %>% as.data.frame()
+
+
+eallonardo_trait <- read_excel("data/raw/CESTES/Plant_data/Eallonardo2013_AJ.xlsx", 
+  sheet = "traitsfull")  %>%
+  full_join(eallonardo_species_list) %>%
+  rename(LA = Area_mm2, SLA = SLA_mm2_mg, Height = mature_ht_cm) %>%
+  select(c(Name, LA, SLA, Height, C4, Perennial,
+           Rhizomatous, nmass, cn)) %>%
+  mutate(C4 = recode(C4, `1` = 2,
+                            `0`  =  1),
+         Perennial = recode(Perennial, `1` = 2,
+                             `0`  =  1),
+         Rhizomatous = recode(Rhizomatous, `1` = 2,
+                             `0`  =  1)) %>%
+  group_by(Name) %>%
+  summarise(across(where(is.numeric), ~mean(.))) %>%
+  ungroup() %>%
+  select(order(colnames(.))) %>%
+  relocate(Name) %>%
+  arrange(Name) %>%
+  mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+
+
+eallonardo_trait_fd <- read_excel("data/raw/CESTES/Plant_data/Eallonardo2013_AJ.xlsx", 
+  sheet = "traitsfull")  %>%
+  full_join(eallonardo_species_list) %>%
+  rename(LA = Area_mm2, SLA = SLA_mm2_mg, Height = mature_ht_cm) %>%
+  select(c(Name, LA, SLA, Height, C4, Perennial,
+           Rhizomatous, nmass, cn)) %>%
+  select(order(colnames(.))) %>%
+  group_by(Name) %>%
+  summarise(across(where(is.numeric), ~mean(.))) %>%
+  ungroup() %>%
+  relocate(Name) %>%
+  arrange(Name) %>%
+  column_to_rownames(var = "Name")
+
+traitlist <- sort(c("C4", "cn", "Height", "LA", "nmass",
+                    "Perennial", "Rhizomatous", "SLA"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+
+``` 
+
+
+## 5. Perform calculations
+```{r calculations }
+
+eallonardo_processed_specieslvl <- cats_preparation(input_veg = eallonardo_veg, input_trait = eallonardo_trait, cutoff_value =  0.8, trait_information = trait_information,
+                                                 trait_detail = "Study")
+
+mean_dist <- calculate_mean_dist(eallonardo_veg, eallonardo_processed_specieslvl)
+
+FD <- dbFD(eallonardo_trait_fd, eallonardo_veg, stand.x = TRUE)
+
+FD_df <- data.frame(FEve = FD$FEve,
+        FDiv  = FD$FDiv,
+        FRic = FD$FRic,
+        RaoQ = FD$RaoQ,
+        qual.FRic = FD$qual.FRic) %>%
+  rownames_to_column(var = "Plot_code")
+
+diversity_info <- eallonardo_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() %>% 
+  mutate(shannon = diversity(.[,1:ncol(.)], index = "shannon", MARGIN = 1, base = exp(1)),
+         simpson = diversity(.[,1:ncol(.)], index = "simpson", MARGIN = 1, base =exp(1)),
+         species_richness = specnumber(.[,1:ncol(.)], MARGIN = 1),
+         empty_states = ncol(eallonardo_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]]) - species_richness,
+         meta_size = ncol(eallonardo_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]])) %>%
+  select(shannon, simpson, species_richness, empty_states, meta_size) %>% # base = exp(1) gives the shannon index a log e base
+  rownames_to_column(var = "Plot_code")  %>% 
+  full_join(mean_dist) %>%
+  full_join(FD_df)
+
+
+```
+
+
+
+## 6. Cats model
+```{r cats calculations}
+
+eallonardo_cats <- cats_calculations(eallonardo_processed_specieslvl, trait_information,
+                                 trait_detail = "Study") %>%
+  mutate(study = "Eallonardo")
+
+eallonardo_figure <- cats_visualisation(eallonardo_cats) %>%
+  mutate(study = "Eallonardo")
+
+save(eallonardo_processed_specieslvl, eallonardo_figure, eallonardo_species_list, 
+     eallonardo_cats,
+  file = "data/processed/eallonardo_calculations.RData")
+
+eallonardo_figure <- eallonardo_figure %>%
+  full_join(eallonardo_veg_info)
+
+
+
+ggplot(eallonardo_figure, aes(x = species_richness, y = KLR2)) +
+  geom_point(aes(colour = Site)) +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Eallonardo et al., 2012",
+       x = "Species richness") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.1, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) +
+  scale_x_continuous(breaks = c(0, 2, 4, 6, 8, 10, 12, 14))
+
+ggplot(eallonardo_figure, aes(x = mean_dist, y = KLR2)) +
+  geom_point(aes(colour = Site)) +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between plot dissimilarity and the CATS decomposition - Eallonardo et al., 2012",
+       x = "Average Bray-Curtis index value") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.1, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) +
+  scale_x_continuous(breaks = c(0, 2, 4, 6, 8, 10, 12, 14))
+
+
+
+```

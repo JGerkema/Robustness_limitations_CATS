@@ -1,0 +1,857 @@
+---
+title: "TRY database"
+author: "Jelyn Gerkema"
+date: "2023-11-17"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings.R")
+source("src/functions_custom.R")
+
+classification <- read_delim("data/raw/classification202312.csv", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE)
+
+```
+
+
+```{r try}
+
+length(unique(TRYdata1$AccSpeciesName)) # n = 94230
+
+path_to_data <- "data/raw/TRY/29649.txt"
+
+TRYdata1 <- rtry_import(path_to_data)
+
+TRYdata3 <- TRYdata1 %>%
+  filter(TraitID %in% c(4, 13, 14, 15, 24, 26, 27, 46, 47, 48, 53, 54, 
+                        59, 70, 71, 83, 89, 116, 146, 164, 246, 785, 
+                        1080, 1181, 3106, 3113, 3117))
+
+length(unique(TRYdata3$AccSpeciesName)) # n = 78021
+
+
+try_ls <- rtry_exclude(TRYdata1, (DataID %in% 413) & 
+                         (OrigValueStr %in% c("13 weeks after sowing, 8 weeks after start of treatments",
+          "check", "compound", "immature", "intermed", "junvenil", "juvenil", "Juvenil", "juvenil (3 years)",
+          "juvenil: 0.5-2.5 m high", "juvenile", "Juvenile", "juvenile, 11-14 weeks", "Juvenile, 15 years",
+          "juvenile, 6 weeks", "S", "sapling", "Sapling (1 - 10 y)", "saplings", "saplings (height 1-2m)",
+          "saplings, 5 - 10 years", "second years after sowing seeds (relatively juvenile for most of species)",
+          "seedling", "Seedling", "Seedling (0 - 1 y)", "seedlings", "seedlings, < 1/2 year", 
+          "seedlings, 1st year", "seedlings, 6 month old", "T", "T/F", "T?", "Y", "young", "Young leaves", 
+          "young tree", "young trees at  0.5-3m height", "young, not seedlings")), baseOn = ObservationID)
+
+
+try_ls_exp <- rtry_exclude(try_ls, (DataID %in% 327) & 
+                         (OrigValueStr %in% c("BAU-Abandonnée/Nardaie Reposoir", 
+          "BAU-Abandonnée/Nardaie non paturée", "BAU-Abandonnée/prairie grasse non paturée", 
+          "BAU-Abandonée/Seslérie non paturée.", "BAU-Nardaie paturée.", 
+          "BAU-Paturée Intermediaire Grasse-seslérie",
+          "BAU-Prairie grasse paturée", "BAU-Prairie à Seslérie paturée", "Branch Bag", "C", "CG", "Chamber",
+          "Climate Chamber", "Climate chamber, non-limiting conditions, (cf. dataset reference)", 
+          "Common Garden", "Common Garden Experiment", "Common garden", "Common garden trees", 
+          "Controlled climate chamber", "Dry Plot", "Experimental, Glasshouse", "FACE",
+          "FE", "Field Experiment", "Fully open overstory 90 days, seedling", 
+          "Fully open overstory, seedling", "G", "GH", "Glass house", "Glasshouse", 
+          "Glasshouse experiment", "Greehouse", "Green house", "Greenhouse", "Greenhouse plants",
+          "Greenhouse, Indiana University", "Greenhouse, grrowth container", 
+          "Greenhouse: highlight_highpH_competition", "Greenhouse: highlight_highpH_nocompetition",
+          "Greenhouse: highlight_lowpH_competition", "Greenhouse: highlight_lowpH_nocompetition",
+          "Greenhouse: lowleight_lowpH_competition", "Greenhouse: lowlight_highpH_competition",
+          "Greenhouse: lowlight_highpH_nocompetition", "Greenhouse: lowlight_lowpH_nocompetition",
+          "Grown from seed sown in outdoor field experiment", "Growth Chamber", "Growth chamber", 
+          "Growth exp", "Harte warming experiment (montane meadow)", 
+          "I do not like this paper. Results looks questionable", 
+          "Irrigation and N fertilisation (100 kg/ha)", "LAU_Grazed/Abandoned", 
+          "LAU_Never ploughed/grazed", "LAU_Never ploughed/grazed highland", 
+          "LAU_Never ploughed/grazed slopes", "LAU_Never ploughed/mown", "LAU_Ploughed/grazed",
+          "LAU_Ploughed/mown", "LAU_Ploughed/mown and fertilized", 
+          "Large potted monoculture mesocosms, outside, soil from local meadow,  grazing and harvests emulated",
+          "Mature cultivated", "Monoculture", "Natural/C", "OTC", "OTC O3", "OTC field", 
+          "Open Top", "Open top chambers", "Other", "Outdoor cultivation in 30x30cm pots, standardized substrate",
+          "Outdoor cultivations (4 repititions) grown in 30x30cm pots with standardized substrate. All pot ...",
+          "PM", "PU", "Partially open overstory 90 days, seedling", "Planted trees", "Planted vines",
+          "Pot exp", "Pot-grown", "Pots outside", "Siemianice", "Undisturbed, seedling", 
+          "University of California Botanical Garden", "VER_permanent meadow mown and fertilized",
+          "ER_permanent meadows mown and fertilized", "WTC", "botanical garden environment",
+          "branch bag", "climate chamber", "climate chambers", "comm.garden.Spain", 
+          "common garden in growth containers with soil corresponding to seed origin", 
+          "common garden, understorey", "controlled environment", "controlled environment room", 
+          "cultivated", "disturbed soil treatment; coniferous forest", 
+          "disturbed soil treatment; deciduous alluvial forest", "disturbed soil treatment; fallow wet meadow",
+          "drought treatment", "dry season measurements (see also #659)", "experimental",
+          "experimental treatment", 
+          "experimental warming with open top chambers during the snow-free period, increasing daily mean  ...",
+          "experimental, in pots outside", "experimental, outside in pots", "field experiment",
+          "forest fertilization", "glasshouse, climate controlled", 
+          "glasshouse, plastic tubes 10cm diameter, 100 cm depth", "grassland common garden", "greenhouse",
+          "greenhouse - Northern Arizona University (standard controlled environment)", "growth chamber",
+          "growth-chamber", "growth_chamber", "hydroponic", "lab", "mesocosm", "mesocosm, 50l pots",
+          "mini-ecosystem", "natural environment, high warming +4C, preccipitation ambient",
+          "natural environment, high warming +4C, preccipitation ambient +50%", 
+          "natural environment, high warming +4C, preccipitation ambient -50%",
+          "natural environment, low warming +1.5C, preccipitation ambient",
+          "natural environment, low warming +1.5C, preccipitation ambient +50%", 
+          "natural environment, low warming +1.5C, preccipitation ambient -50%", 
+          "natural environment, medium warming +2.5C, preccipitation ambient",
+          "natural environment, medium warming +2.5C, preccipitation ambient +50%",
+          "natural environment, medium warming +2.5C, preccipitation ambient -50%",
+          "natural environment, no warming, preccipitation ambient +50%",
+          "natural environment, no warming, preccipitation ambient -50%",
+          "natural grassland, experimental nutrient NP addition", "nursery",
+          "nutrient addition experiment", "open-sided growth chamber", "open-top chamber",
+          "open-top chambers", "pot", "pots, outside in natural environment", "shade houses",
+          "smelter polluted environment", "water stress experiment", "water treatment", 
+          "whole-tree chamber", "plantation")), baseOn = ObservationID)
+
+
+try_ls_exp_hlth <- rtry_exclude(try_ls_exp, (DataID %in% 1961) & 
+                         (OrigValueStr %in% c("Dead")), baseOn = ObservationID)
+
+
+try_filtered <- rtry_remove_dup(try_ls_exp_hlth)
+
+
+try_filtered <- rtry_exclude(try_filtered, ErrorRisk >= 3, baseOn = ObsDataID) 
+
+
+trait_explore <- rtry_explore(try_filtered, DataID, DataName, TraitID, TraitName, sortBy = TraitID)
+
+try_clean <- try_filtered %>%
+  filter(DataID %notin% c(8178, 9780, 1629, 1739, 974, 2526, 2760, 2527, 2761, 
+                          9906, 2762, 9578, 9577, 9576, 9575, 9574, 3710, 2958, 
+                          9447, 8651, 8643, 8648, 8642, 8650, 8647, 8646, 8649, 
+                          8645, 8644, 2373, 2380, 2365, 2367, 2375, 2381, 3809, 
+                          3812, 3814, 3811, 3816, 225, 2082, 2142, 3990, 3991, 
+                          2412, 2413, 2414, 904, 1271, 9926, 9931, 27, 9898, 
+                          9899, 9900, 9901, 476, 2506, 829, 2499, 2500, 1027, 
+                          1028, 2311, 4142, 3974, 3979, 3980, 3978, 3976, 3975, 
+                          3977)) %>%
+  filter(TraitID %in% c(3, 4, 13, 14, 15, 22, 24, 26, 27, 46, 47, 48, 53, 54, 
+                        59, 70, 71, 83, 89, 146, 164, 246, 334, 785, 819, 839, 
+                        1047, 1080, 1181, 1256, 3106, 3113, 3117, 3588, 3801)) %>% #n = 35
+  drop_na(StdValue) %>%
+  select(AccSpeciesName, TraitID, ObservationID, TraitName, StdValue,
+         Reference, LastName, FirstName) %>%
+  group_by(AccSpeciesName, ObservationID, TraitID, TraitName,
+         Reference, LastName, FirstName) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = TRUE))) %>%
+  ungroup() %>%
+   filter(LastName %notin% c("Frenette-Dussault")) %>%
+  filter(Reference %notin% c("Jager et al (2015) Journal of Ecology 103(2):374-385. https://doi.org/10.1111/1365-2745.12366 ;  Simpson et al. (2016) Global Ecology and Biogeography 25:964-978 doi:10.1111/geb.12457", 
+  "Raevel, V., Violle, C., & Munoz, F. (2012). Mechanisms of ecological succession: insights from plant functional strategies. Oikos, 121(11): 1761–1770. doi:10.1111/j.1600-0706.2012.20261.x Raevel, V., Munoz, F., Pons, V., Renaux, A., Martin, A., & Thompson, J.D. (2013). Changing assembly processes during a primary succession of plant communities on Mediterranean roadcuts. Journal of Plant Ecology, 6(1):19-28. https://doi.org/10.1093/jpe/rts011", "Purcell, A. S. T., W. G. Lee, A. J. Tanentzap, and D. C. Laughlin. 2019. Fine root traits are correlated with flooding duration while aboveground traits are related to grazing in an ephemeral wetland. Wetlands 39(2): 291-302.")) 
+
+length(unique(try_clean$AccSpeciesName)) # n = 67963
+
+removed_because_nonsensical <- try_clean %>% 
+  filter(str_count(AccSpeciesName, "\\S+") == 1) %>%
+  select(AccSpeciesName) %>%
+  distinct() 
+
+############################# 
+try_clean2 <- try_clean %>%
+  filter(str_count(AccSpeciesName, "\\S+") > 1) %>% 
+  #121 AccSpeciesNames are removed, as they are not actual species names, but 
+  # things like: "herbaceaus", "fern", or "ANANI". Their string only consists of one word.
+  mutate(AccSpeciesName = tolower(AccSpeciesName)) %>%
+  mutate(AccSpeciesName = paste0(tools::toTitleCase(word(AccSpeciesName, 1)), " ",
+                                  word(AccSpeciesName, 2, -1))) 
+  
+length(unique(try_clean2$TraitID))
+length(unique(try_clean2$AccSpeciesName)) #67842
+
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/try_clean106.RData")
+
+##################################
+author_check <- TRYdata1 %>%
+  filter(ObservationID %in% try_traits_tax_final$ObservationID) %>%
+  select(ObservationID, DatasetID, TraitID, Reference) %>%
+  distinct()
+
+length(unique(author_check$Reference))
+Datasetid <- data.frame("ID" = c(sort(unique(author_check$DatasetID)))) %>%
+  filter(ID %in% c(553, 582, 583, 746, 629, 654, 631, 7, 600, 503, 229, 
+                   372, 501, 764, 765, 763, 644, 645, 368, 721, 736, 530, 
+                   529, 724, 546, 567, 580, 523, 524, 528, 52, 753, 602, 
+                   527, 539, 290, 316, 457, 518, 247, 761, 484, 638, 708, 
+                   635, 496, 497, 493, 71, 615, 391, 392, 519, 532, 485, 
+                   608, 773, 568, 711, 534, 575, 547, 598, 737, 554)) 
+not_incl <- data.frame("Req" = c(553, 582, 583, 746, 629, 654, 631, 7, 600, 503, 229, 
+                   372, 501, 764, 765, 763, 644, 645, 368, 721, 736, 530, 
+                   529, 724, 546, 567, 580, 523, 524, 528, 52, 753, 602, 
+                   527, 539, 290, 316, 457, 518, 247, 761, 484, 638, 708, 
+                   635, 496, 497, 493, 71, 615, 391, 392, 519, 532, 485, 
+                   608, 773, 568, 711, 534, 575, 547, 598, 737, 554)) %>%
+  filter(Req %notin% Datasetid$ID)
+
+check <- try_filtered %>%
+  filter(DatasetID %in% not_incl$Req)
+
+
+check2 <- TRYdata1 %>%
+  filter(DatasetID %in% c(553, 582, 583, 746, 629, 654, 631, 7, 600, 503, 229, 
+                   372, 501, 764, 765, 763, 644, 645, 368, 721, 736, 530, 
+                   529, 724, 546, 567, 580, 523, 524, 528, 52, 753, 602, 
+                   527, 539, 290, 316, 457, 518, 247, 761, 484, 638, 708, 
+                   635, 496, 497, 493, 71, 615, 391, 392, 519, 532, 485, 
+                   608, 773, 568, 711, 534, 575, 547, 598, 737, 554)) %>%
+  select(TraitName, TraitID, DatasetID, Reference) %>%
+  drop_na(TraitID) %>%
+  distinct() %>%
+  filter(DatasetID %in% not_incl$Req)
+length(unique(check2$DatasetID))
+
+
+###########################################################
+
+# try_clean2 contains 69182 unique, "accepted" species names, 1592 of those
+# are nonsensical names. 
+
+# try_wf_clean_first contains the species names in the TRY database that have a direct
+# match with the WFO backbone. n = 63302
+try_wf_clean_first <- classification %>%
+  mutate(scientificName = str_replace_all(scientificName, "  ", " ")) %>%
+  filter(scientificName %in% c(try_clean2$AccSpeciesName))
+
+length(unique(try_wf_clean_first$scientificName))
+
+try_names_save_1 <- try_wf_clean_first %>%
+  select(scientificName) %>%
+  rename(old_try_name = scientificName) %>%
+  mutate(new_try_name = old_try_name) %>%
+  distinct()
+
+# These species are not present in the WFO backbone. That could be because, 
+# 1). the species is not correctly spelled, or 2). because it is not an actual species name, 
+# (for example, because it refers to a genus or to a broader group)
+# Here, entries without an actual species name and suspected cultivars are removed. 
+not_included_in_wf <- try_clean2 %>%
+  filter(AccSpeciesName %notin% c(try_wf_clean_first$scientificName)) %>%
+  select(AccSpeciesName) %>%
+  distinct() %>%
+  separate(AccSpeciesName, into = c("genus", "sp"), extra = "merge", remove = F) 
+
+length(unique(not_included_in_wf$AccSpeciesName)) #4540
+
+removed_because_nonsensical_final <- not_included_in_wf %>%
+  filter(sp %in% c("sp", "sp.", "abandoned area", "african shrubs", "alba preta",
+                      "alluvial", "alluvial meadow", "araba tuua", "arc pp144",
+                      "arc pp146", "average", "broad-leaved", "broadleaf", 
+                      "catinga species", "cf.", "cff", "chocolate","cottage garden hybrid'",
+                      "crop", "cultivar", "cultivars", "da", "da-mata", "da mata",
+                      "da rosca", "da terra firme", "dark green", "darkcrasa", "de",
+                      "deciduous forest", "deciduous trees", "evergreen trees",
+                      "field annual", "findlay's blue'", "fisch.", "fitzgerald river",
+                      "forest species", "form taxon 'filifolia'", "fuzzy", 
+                      "gorky", "grande", "grass", "grasses", "grassland", 
+                      "herbaceous", "hutch.", "hybrid", "l.", "laeve", "leaf", "leafea",
+                      "limestone", "lookalike", "m.", "meadow", "meadow steppe",
+                      "melkboom", "mill.", "mosaic", "numm.", "oak", "ob", "palm",
+                      "para", "pasture", "preta", "preto", "preto folha grauda",
+                      "preto folha miuda", "Rosette forb", "shrub", "shrubs and trees",
+                      "sj", "skinny", "skinny2", "skinnyret", "small", "ss", "steppe",
+                      "tallmorph", "terete-leaved", "terra", "tree", "tree co2", 
+                      "tree field", "trees", "wedding day'"
+                      ) |genus %in% c("Mountain", "may", "Lauraceae", "Southafrica", "Tropical")|AccSpeciesName %in% c("Paeonia 'anne rosse'", "Mid liana", 
+                                  "Mata mata", "Mata mata preto", 
+                                  "Mata mata si", "Buxuxu new", "Buxuxu old",
+                                  "Sold pus", "Pubescent rosette", "Carex saw",
+                                  "Eri sch", "Ucuuba t folha", "Death valley annual", 
+                                  "Death valley annuals", "Deciduous chaparral shrubs"
+                                  )) %>% # mata mata is a turtle species
+  select(AccSpeciesName) %>%
+  bind_rows(removed_because_nonsensical) %>%
+  arrange(AccSpeciesName) 
+
+length(unique(removed_because_nonsensical_final$AccSpeciesName)) #1585
+
+not_included_in_wf <- not_included_in_wf %>%
+  filter(AccSpeciesName %notin% c(removed_because_nonsensical_final$AccSpeciesName))
+
+length(unique(not_included_in_wf$AccSpeciesName)) #3076
+
+write_xlsx(removed_because_nonsensical_final, path = "removed_because_nonsensical_final106.xlsx")
+
+
+################################################## 
+# A new clean try database is created, containing the original try names, and
+# their new names which have a match in the WFO database. The original and new names
+# are the same if the original directly matches with the wfo database. 
+
+second_check_match <- not_included_in_wf %>%
+  separate(AccSpeciesName, into = c("genus", "sp", "extra"), extra = "drop", remove = F) %>%
+  filter(extra %in% c("var", "subsp", "x")) %>%
+  mutate(scientificName = paste0(genus, " ", sp)) %>%
+  select(-c("sp", "extra", "genus"))
+
+length(unique(second_check_match$AccSpeciesName)) #n = 894
+length(unique(second_check_match$scientificName)) #n = 864
+
+try_wf_clean_second <- classification %>%
+  mutate(scientificName = str_replace_all(scientificName, "  ", " ")) %>%
+  filter(scientificName %in% c(second_check_match$scientificName)) 
+
+second_check_matched <- second_check_match %>%
+  filter(scientificName %in% c(try_wf_clean_second$scientificName)) 
+
+try_names_save_2 <- second_check_matched %>%
+  rename(old_try_name = AccSpeciesName,
+         new_try_name = scientificName) 
+
+length(unique(try_wf_clean_second$scientificName)) #n = 751
+
+# The species that do not have a direct match with the WFO backbone. n = 2323
+to_be_matched <- not_included_in_wf %>%
+  filter(AccSpeciesName %notin% c(second_check_matched$AccSpeciesName)) %>%
+  pull(AccSpeciesName)
+
+
+matched_with_wf <- WFO.match(spec.data = to_be_matched, WFO.data = classification)
+
+save(try_filtered, try_clean2, removed_because_nonsensical, matched_with_wf,
+ file = "data/processed/try_clean106.RData")
+
+check <- matched_with_wf %>%
+  filter(spec.name.ORIG %notin% to_be_matched) %>%
+  filter(Fuzzy.dist <= 2) %>%
+  select(scientificName, spec.name.ORIG, Old.name, Fuzzy.dist, taxonID) %>%
+  mutate(scientificName = str_replace_all(scientificName, "  ", " ")) %>%
+  group_by(spec.name.ORIG) %>%
+  filter(n() == 1) %>% # Some names have multiple matches, they are removed
+  ungroup()
+
+matched_with_wf_save <- matched_with_wf %>%
+  filter(spec.name.ORIG %in% to_be_matched) %>%
+  filter(Fuzzy.dist <= 2) %>%
+  select(scientificName, spec.name.ORIG, Old.name, Fuzzy.dist, taxonID) %>%
+  mutate(scientificName = str_replace_all(scientificName, "  ", " ")) %>%
+  group_by(spec.name.ORIG) %>%
+  filter(n() == 1) %>% # Some names have multiple matches, they are removed
+  ungroup()
+
+length(unique(matched_with_wf_save$spec.name.ORIG)) #874
+
+write_xlsx(matched_with_wf_save, path = "matched_with_wf_save106.xlsx")
+
+# These matches are removed because they are deemed unreliable. 
+matched_with_wf_save_filt <- matched_with_wf_save %>%
+  filter(spec.name.ORIG %notin% c("Brachyscome foliosa",
+                                  "Buxus aemulans",
+                                  "Capparis indica",
+                                  "Ceropegia adenensis",
+                                  "Ceropegia caudata",
+                                  "Chenopodium wilsonii",
+                                  "Clematis anethifolia",
+                                  "Cleome maximiliani",
+                                  "Clusia cretosa",
+                                  "Cordia japonica",
+                                  "Dacryodes canalensis",
+                                  "Hibiscus americanus",
+                                  "Lamium japonicum",
+                                  "Limonium smithii",
+                                  "Myriophyllum alternifolium",
+                                  "Piper bellidi",
+                                  "Pittosporum pullii",
+                                  "Taxus grandis",
+                                  "Urtica tenella",
+                                  "Virola mollis",
+                                  "Zygia media")) 
+
+length(unique(matched_with_wf_save_filt$spec.name.ORIG)) # 854 matches, 835 new wfo names
+
+try_wf_clean_third <- classification %>%
+  mutate(scientificName = str_replace_all(scientificName, "  ", " ")) %>%
+  filter(taxonID %in% c(matched_with_wf_save_filt$taxonID)) 
+  
+try_names_save_3 <- matched_with_wf_save_filt %>%
+  select(spec.name.ORIG, scientificName) %>%
+  rename(old_try_name = spec.name.ORIG,
+         new_try_name = scientificName)
+
+
+try_wf_clean_complete <- bind_rows(try_wf_clean_first, try_wf_clean_second,
+                                   try_wf_clean_third) %>% distinct()
+
+length(unique(try_wf_clean_complete$scientificName)) #64139
+
+# try_wf_clean_complete contains the species in the TRY database that have a direct match
+# within the WFO database. From that dataset, all names are removed that are 
+# actually a synonym for another species. n = 
+accepted_species_single_first <- try_wf_clean_complete %>% 
+  filter(taxonomicStatus != "Synonym") %>%
+  select(scientificName, taxonID, genus, family, taxonomicStatus) %>%
+  rename(acceptedNameUsageID = taxonID, new_try_name = scientificName) %>%
+  mutate(wfo_match = new_try_name) %>%
+  group_by(wfo_match) %>% # Some species have multiple ID numbers, due
+  # to a different associated author with the exact same name. First, the species 
+  # are selected that that have no such duplicates
+  filter(n() == 1) 
+
+length(unique(accepted_species_single_first$wfo_match)) #57037
+
+# These multiple accepted species names belonging to one TRY entry, poses a problem
+# for the matching of species synonyms. As it is unclear of the synonym actually belongs to 
+# the data in the TRY database. To check later in the script, if any of the matched
+# accepted species names, could lead to misinterpretations, the AccSpeciesNames belonging
+# to multiple WFO names, are saved. n = 1843. 
+# There is a difference however, in the species that have multiple matches. Some of the
+# matches are "Unchecked". And in some cases, if these are removed, only one "Accepted" match 
+# remains. In that case, that match and the corresponding ID is selected and the species is
+# not counted with the multiple matches list. 
+
+accepted_species_single <- try_wf_clean_complete %>% 
+  filter(taxonomicStatus != "Synonym") %>%
+  select(scientificName, taxonID, genus, family, taxonomicStatus, nomenclaturalStatus) %>%
+  rename(acceptedNameUsageID = taxonID, new_try_name = scientificName) %>%
+  mutate(wfo_match = new_try_name) %>%
+  group_by(wfo_match) %>%
+  filter(n() > 1) %>% #2468
+  ungroup() %>%
+  filter(taxonomicStatus != "Unchecked")  %>%
+  filter(taxonomicStatus != "Invalid")  %>% # no occurences
+  distinct() %>%
+  group_by(wfo_match) %>%
+  filter(n()==1) %>% #1579 new matches
+  bind_rows(accepted_species_single_first)
+
+length(unique(accepted_species_single$wfo_match)) #58616
+
+accepted_species_multiple <- try_wf_clean_complete %>% # was eerst try_wf_clean2
+  filter(taxonomicStatus != "Synonym") %>%
+  select(scientificName, taxonID, genus, family, 
+         taxonomicStatus, nomenclaturalStatus) %>%
+  rename(acceptedNameUsageID = taxonID, new_try_name = scientificName) %>%
+  mutate(wfo_match = new_try_name) %>%
+  filter(wfo_match %notin% c(accepted_species_single$wfo_match)) %>%
+  arrange(acceptedNameUsageID) %>% # Some species have multiple ID numbers, due
+  # to a different associated author with the exact same name. With the 
+  # last lines of codes, the duplicates are removed. The 
+  distinct(wfo_match, .keep_all = TRUE)
+
+length(unique(accepted_species_multiple$wfo_match)) # n = 889
+
+
+accepted_species <- bind_rows(accepted_species_multiple, accepted_species_single) 
+
+length(unique(accepted_species$new_try_name)) #59505
+
+
+# The synonyms datafile contains all synonym names. Some of those names are the 
+# same as an accepted species, indistinguishable if not for the author citation.
+# These synonyms are removed as it is assumed that the name in the TRY database 
+# corresponds with the accepted species name and not with the synonym. 
+
+synonyms <- try_wf_clean_complete %>% 
+  filter(taxonomicStatus == "Synonym") %>% # n = 8411
+  filter(scientificName %notin% c(accepted_species$new_try_name)) %>%  # n = 3699
+  # Filter out all the synonyms that have an actual species match. I am going to
+  # assume that if an author writes down that name in the TRY database, 
+  # it means the original, accepted species name and not a synonym of another species. 
+  select(c(scientificName, acceptedNameUsageID, nomenclaturalStatus, 
+           taxonomicStatus, genus, family)) %>%
+  distinct()
+
+length(unique(synonyms$scientificName)) # n = 4634
+
+
+# First, the synonyms are extracted which have a unique, accepted name. To do so, first 
+# the duplicate copies are removed (i.e. the speciesnames that occur more than once
+# but still with the same acceptedNameUsageID. 
+# In those cases, the author citation is different)
+
+single_synonyms <- synonyms %>%
+  select(c(scientificName, acceptedNameUsageID, genus, family)) %>%
+  distinct() %>%
+  group_by(scientificName, genus, family) %>%
+  filter(n() == 1) %>%
+  ungroup()
+
+length(unique(single_synonyms$scientificName)) # n = 4435
+
+#check <- multiple_synonyms %>%
+ # rename(AccSpeciesName = scientificName) %>%
+  #select(c(AccSpeciesName, acceptedNameUsageID)) %>%
+  #left_join(codes) 
+
+multiple_synonyms <- synonyms %>% 
+  filter(scientificName %notin% c(single_synonyms$scientificName)) %>%
+  #group_by(scientificName) %>%
+  filter(nomenclaturalStatus %in% c(NA, "Valid")) # This also removes the synonym
+ # Lupinus micranthus, as both and only matches are noted as "Illegitimate".
+
+
+length(unique(multiple_synonyms$scientificName)) # n = 194
+
+# These are the species names that are now resolved. n = 108
+single_synonyms_2 <- multiple_synonyms %>%
+  group_by(scientificName, genus, family ) %>%
+  filter(n() == 1)
+
+length(unique(single_synonyms_2$scientificName)) # n = 108
+
+# These are the final synonym names that are resolved. n = 19
+single_synonyms_3 <- multiple_synonyms %>%
+  filter(scientificName %notin% c(single_synonyms_2$scientificName)) %>%
+  group_by(scientificName, genus, family) %>%
+  filter(any(!is.na(nomenclaturalStatus))) %>%
+  drop_na() %>%
+  filter(n() == 1)
+
+length(unique(single_synonyms_3$scientificName)) # n = 19
+
+# These are the synonyms that still have multiple, accepted species names
+multiple_synonyms_final <- multiple_synonyms %>%
+  filter(scientificName %notin% c(single_synonyms_2$scientificName)) %>%
+  filter(scientificName %notin% c(single_synonyms_3$scientificName)) %>%
+  distinct() %>%
+  group_by(scientificName, genus, family) %>%
+    filter(n() > 1)
+
+length(unique(multiple_synonyms_final$scientificName)) # n = 67
+
+check_names <- classification %>%
+  mutate(scientificName = str_replace_all(scientificName, "  ", " ")) %>%
+  filter(taxonID %in% c(multiple_synonyms_final$acceptedNameUsageID)) %>%
+  select(scientificName, taxonID) %>%
+  distinct() %>%
+  rename(acceptedNameUsageID = taxonID, new_name = scientificName) %>%
+  full_join(multiple_synonyms_final)
+
+# For some synonyms that still have multiple accepted species names, none of these
+# accepted names are included in the TRY database. Note, these accepted names differ in 
+# more than their author name. It is therefore save to keep those
+# synonym names in the try database. 
+
+multiple_synonyms_keep <- classification %>%
+  mutate(scientificName = str_replace_all(scientificName, "  ", " ")) %>%
+  filter(taxonID %in% c(multiple_synonyms_final$acceptedNameUsageID)) %>%
+  select(taxonID, scientificName, family) %>%
+  rename(acceptedNameUsageID = taxonID, wfo_match = scientificName) %>%
+  full_join(multiple_synonyms_final) %>%
+  group_by(scientificName, family) %>%
+  filter(!any(wfo_match %in% try_clean2$AccSpeciesName)) %>%
+  ungroup() %>%
+  select(scientificName, family) %>%
+  rename(new_try_name = scientificName) %>%
+  mutate(acceptedNameUsageID = "multiple",
+         wfo_match = new_try_name) %>%
+  separate(new_try_name, into = c("genus"), sep = " ", extra = "drop", remove = F) %>%
+  distinct()
+
+length(multiple_synonyms_keep$new_try_name)
+
+all_synonyms <- bind_rows(single_synonyms, single_synonyms_2, single_synonyms_3) %>%
+  mutate(include = "yes") %>%
+  select(-c(genus, family))
+
+how_many <- bind_rows(single_synonyms_2, single_synonyms_3)
+length(unique(how_many$scientificName)) # n = 127
+
+length(unique(all_synonyms$scientificName)) # n = 4562
+
+# Now it is time to match the acceptedNameUsageID's with the actual species names
+codes <- classification %>% 
+  mutate(scientificName = str_replace_all(scientificName, "  ", " ")) %>%
+  select(taxonID, scientificName, genus, family) %>%
+  rename(acceptedNameUsageID = taxonID, wfo_match = scientificName) 
+
+
+matched_synonyms <- full_join(all_synonyms, codes) %>%
+  filter(include == "yes") %>%
+  rename(new_try_name = scientificName) %>%
+  filter(wfo_match %notin% c(accepted_species_multiple$wfo_match)) 
+# n = 21 are removed
+
+length(unique(matched_synonyms$new_try_name)) # 4541
+
+# Some of the new names found by the synonyms, are also present in the
+# accepted species list. This should not be a problem except for the fact that
+# some species have the exact same genus and taxa name and are thus indistinguishable
+# besides their author name which is not included in the TRY database. This leads to
+# multiple species codes belonging to, for all for all intents and purposes, the same species.
+# To make sure that we end up with a clean, clear dataset, where each new name belongs
+# to only one species code, we check whether the matched synonym names also occur in the
+# multiple accepted species list. If they do, they are removed. 
+
+
+combined <- bind_rows(matched_synonyms, accepted_species) %>%
+  select(-c(include, nomenclaturalStatus))
+
+length(unique(combined$acceptedNameUsageID)) # 62721 unique new species names and codes
+
+
+final_new <- combined
+
+combined2 <- final_new %>%
+  select(-c(taxonomicStatus))
+
+
+# 
+final_combined <- combined2 %>%
+  mutate(family =  case_when(genus == "Babbagia" ~  "Amaranthaceae",
+                          genus ==  "Caelospermum" ~ "Rubiaceae",
+                         genus == "Cimifuga" ~ "Ranunculaceae",
+                         genus == "Daniella" ~ "Bignoniaceae",
+                         genus == "Hablitzia" ~ "Amaranthaceae",
+                         genus == "Leptogonum" ~ "Polygonaceae",
+                         genus == "Namibithamnus" ~ "Asteraceae",
+                         genus == "Nemum" ~ "Cyperaceae",
+                         genus == "Petrophila" ~ "Proteaceae",
+                         genus == "Platyspermation" ~ "Alseuosmiaceae",
+                         genus == "Pseudopegolettia" ~ "Asteraceae",
+                         genus == "Pterothamnus" ~ "Caprifoliaceae",
+                         genus == "Szowitsia" ~ "Apiaceae",
+                         genus == "Thylacium" ~ "Capparaceae",
+                         genus == "Ardisia" ~ "Primulaceae", # for these next four, the genus was coupled to two families. 
+                         genus == "Athyrium" ~ "Aspleniaceae",
+                         genus == "Baeckea" ~ "Myrtaceae", 
+                         genus == "Libertia" ~ "Iridaceae", # till here
+                         genus == "Trigastrotheca" ~ "Molluginaceae",
+                         genus == "Opoponax" ~ "Apiaceae",
+                         TRUE ~ family)) %>%
+  bind_rows(multiple_synonyms_keep)
+
+
+
+try_tax <- vascular.families %>% # obtained from https://rdrr.io/cran/WorldFlora/man/vascular.families.html
+  rename(family = Family, order = Order) %>%
+  select(family, order, Group) %>%
+  right_join(final_combined) %>%
+  mutate(order = case_when(family == "Agdestidaceae" ~ "Caryophyllales",
+                           family == "Aulacomniaceae" ~ "Bryales",
+                           family == "Brachytheciaceae" ~ "Hypnales", 
+                           family == "Bryaceae" ~ "Bryales", 
+                           family == "Calymperaceae" ~ "Dicranales", 
+                           family == "Daltoniaceae" ~ "Hookeriales", 
+                           family == "Dicranaceae" ~ "Dicranales", 
+                           family == "Didymochlaenaceae" ~ "Polypodiales", 
+                           family == "Fissidentaceae" ~ "Dicranales", 
+                           family == "Gymnomitriaceae" ~ "Jungermanniales", 
+                           family == "Hemidictyaceae" ~ "Polypodiales", 
+                           family == "Hookeriaceae" ~ "Hookeriales", 
+                           family == "Hylocomiaceae" ~ "Hypnales", 
+                           family == "Leucobryaceae" ~ "Dicranales", 
+                           family == "Orthotrichaceae" ~ "Orthotrichales", 
+                           family == "Pallaviciniaceae" ~ "Pallaviciniales", 
+                           family == "Polytrichaceae" ~ "Polytrichales", 
+                           family == "Pottiaceae" ~ "Pottiales", 
+                           family == "Ptychomniaceae" ~ "Ptychomniales", 
+                           family == "Pylaisiaceae" ~  "Hypnales", 
+                           family == "Rhizogoniaceae" ~ "Rhizogoniales", 
+                           family == "Ricciaceae" ~ "Marchantiales" , 
+                           family == "Sematophyllaceae" ~ "Hypnales", 
+                           family == "Sphagnaceae" ~ "Sphagnales", 
+                           family == "Viburnaceae" ~ "Dipsacales",
+                           family == "Cephalotaxaceae" ~ "Coniferales", 
+                           family == "Amblystegiaceae" ~ "Hypnales",
+                           family == "Calomniaceae"  ~ "Rhizogoniales",
+                           family == "Corbichoniaceae" ~ "Caryophyllales", 
+                           TRUE ~ order )) %>%
+  filter(order %notin% c("Bryales", "Hookeriales", "Hypnales", "Dicranales", 
+                         "Jungermanniales", "Marchantiales", 
+                         "Orthotrichales", "Pallaviciniales", "Polytrichales",
+                         "Pottiales", "Ptychomniales", "Rhizogoniales",
+                         "Sphagnales")) %>%
+  select(-c(Group))
+
+
+try_names_save_complete <- bind_rows(try_names_save_1, try_names_save_2,
+                                     try_names_save_3) 
+
+try_tax2 <- try_tax %>% full_join(try_names_save_complete) %>% distinct() %>%
+  rename(initial_wfo_match = new_try_name)
+
+try_traits_tax_final <- try_clean2 %>%
+  rename(old_try_name = AccSpeciesName) %>%
+  right_join(try_tax2) %>%
+  drop_na() 
+
+save(try_traits_tax_final, file = "data.public/try_final106.RData")
+
+entree_count2 <- table(try_traits_tax_final$TraitID) %>% as.data.frame 
+write_xlsx(entree_count, path = "docs/try_entree_count.xlsx")
+
+```
+
+```{r BHPMF}
+
+arranged <- try_traits_tax_final %>%
+  select(c(wfo_match, ObservationID, genus, family, order, TraitName, StdValue, acceptedNameUsageID)) %>%
+  arrange(ObservationID) %>%
+  pivot_wider(values_from = StdValue, names_from = TraitName)
+
+hierarchy <- arranged %>%
+  select(c(ObservationID, wfo_match, genus, family, order)) %>%
+  as.matrix()
+
+traits <- arranged %>%
+  select(-c(wfo_match, genus, family, order, acceptedNameUsageID)) 
+
+traits_norm <- traits %>%
+  column_to_rownames(var = "ObservationID") %>%
+  as.matrix()
+
+#The data must be normalized and linearized. A log transformation is used. 
+back_trans_pars <- list()
+rm_col <- c()
+
+for(i in 1:ncol(traits_norm)){
+  x <- traits_norm[,i] # goes through the columns
+  min_x <- min(x,na.rm = T) # takes the min of each column
+  if(min_x < 0.00000000001){
+    x <- x - min_x + 1 # make this optional if min x is neg
+  }
+  logx <- log10(x)
+  mlogx <- mean(logx, na.rm = T)
+  slogx <- sd(logx, na.rm = T)
+  x <- (logx - mlogx)/slogx # Z transformation
+  back_trans_pars[[i]] <- list(min_x = min_x,
+                                     mlogx = mlogx,
+                                     slogx = slogx)
+  traits_norm[,i] <- x
+}
+
+tmp.dir <- dirname("/bhpmf/")
+
+GapFilling(traits_norm, hierarchy,
+           mean.gap.filled.output.path = paste0(tmp.dir, "/mean_gap_filled.txt"),
+           std.gap.filled.output.path = paste0(tmp.dir, "/std_gap_filled.txt"),
+           tmp.dir = tmp.dir, tuning = F, used.num.hierarchy.levels = 4)
+
+mean_gap_filled <- read.delim("/bhpmf/mean_gap_filled.txt")
+
+
+trait_imp <- bind_cols(mean_gap_filled, hierarchy) 
+
+trait_imp2 <- trait_imp %>%
+  select(-c(wfo_match, genus, family, order)) %>%
+  relocate(ObservationID) %>%
+  rename("Leaf area (in case of compound leaves: leaflet, undefined if petiole is in- or excluded)" =
+           "Leaf.area..in.case.of.compound.leaves..leaflet..undefined.if.petiole.is.in..or.excluded.",
+         "Bark thickness" = "Bark.thickness",
+         "Leaf carbon (C) content per leaf dry mass" = "Leaf.carbon..C..content.per.leaf.dry.mass",
+         "Leaf carbon isotope signature (delta 13C)" = "Leaf.carbon.isotope.signature..delta.13C.",
+         "Leaf chlorophyll content per leaf dry mass" = "Leaf.chlorophyll.content.per.leaf.dry.mass",
+         "Leaf nitrogen (N) content per leaf dry mass" = "Leaf.nitrogen..N..content.per.leaf.dry.mass",
+         "Leaf phosphorus (P) content per leaf dry mass" = "Leaf.phosphorus..P..content.per.leaf.dry.mass",
+         "Leaf thickness" = "Leaf.thickness",
+         "Plant height vegetative" = "Plant.height.vegetative",
+         "Seed dry mass" = "Seed.dry.mass",
+         "Plant lifespan (longevity)" = "Plant.lifespan..longevity.",
+         "Leaf width" = "Leaf.width",
+         "Leaf area per leaf dry mass (specific leaf area, SLA or 1/LMA): undefined if petiole is in- or excluded" =
+           "Leaf.area.per.leaf.dry.mass..specific.leaf.area..SLA.or.1.LMA...undefined.if.petiole.is.in..or.excluded",
+         "Leaf density (leaf tissue density, leaf dry mass per leaf volume)" = 
+           "Leaf.density..leaf.tissue.density..leaf.dry.mass.per.leaf.volume.",
+         "Leaf carbon/nitrogen (C/N) ratio" = "Leaf.carbon.nitrogen..C.N..ratio",
+         "Leaf dry mass per leaf fresh mass (leaf dry matter content, LDMC)" = 
+           "Leaf.dry.mass.per.leaf.fresh.mass..leaf.dry.matter.content..LDMC.",
+         "Litter nitrogen (N) content per litter dry mass" = "Litter.nitrogen..N..content.per.litter.dry.mass",
+         "Litter phosphorus (P) content per litter dry mass" = "Litter.phosphorus..P..content.per.litter.dry.mass",
+         "Photosynthesis rate per leaf area" = "Photosynthesis.rate.per.leaf.area",
+         "Seed length" = "Seed.length",
+         "Stem specific density (SSD, stem dry mass per stem fresh volume) or wood density" = 
+           "Stem.specific.density..SSD..stem.dry.mass.per.stem.fresh.volume..or.wood.density",
+         "Leaf respiration rate in the dark per leaf area" = "Leaf.respiration.rate.in.the.dark.per.leaf.area",
+         "Root diameter" = "Root.diameter",
+         "Root porosity (fraction of root aerenchyma air space)" = "Root.porosity..fraction.of.root.aerenchyma.air.space.",
+         "Root length per root dry mass (specific root length, SRL)" = "Root.length.per.root.dry.mass..specific.root.length..SRL.",
+         "Root dry mass per root fresh mass (root dry matter content; RDMC)" = 
+           "Root.dry.mass.per.root.fresh.mass..root.dry.matter.content..RDMC.",
+         "Stem dry mass per stem fresh mass (stem dry matter content, StDMC)" = 
+           "Stem.dry.mass.per.stem.fresh.mass..stem.dry.matter.content..StDMC.") %>%
+  pivot_longer(cols = 2:ncol(.), names_to = "Trait",
+               values_to = "Value_imp") %>%
+  mutate(ObservationID = str_replace_all(ObservationID, "\\s", "")) 
+
+
+trait_imp3 <- trait_imp2 %>%
+  pivot_wider(values_from = "Value_imp", names_from = "Trait") %>%
+  column_to_rownames(var = "ObservationID")
+
+# The data is backtransformed, so the original values will be used when standardizing the traits
+trait_imp4 <- trait_imp3
+
+for (i in 1:ncol(trait_imp3)) {
+  x <- trait_imp3[, i]  # Retrieve the transformed data column
+  
+  # Retrieve the back transformation parameters
+  min_x <- back_trans_pars[[i]]$min_x
+  mlogx <- back_trans_pars[[i]]$mlogx
+  slogx <- back_trans_pars[[i]]$slogx
+  
+  
+  # Reverse the Z transformation
+  x <- (x * slogx) + mlogx
+  
+  x <- 10^x
+  
+  # Reverse the adjustment made for negative minimum values
+  if (min_x < 0.00000000001) {
+    x <- x - 1 + min_x
+  }
+  
+  trait_imp3[, i] <- x  # Back-transformed data
+  
+  
+}
+
+traits_noNA <- traits %>%
+  as.data.frame() %>%
+  mutate(ObservationID = as.character(ObservationID)) %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "value",
+               names_to = "trait") %>%
+  drop_na() %>%
+  mutate(ID_trait = paste(ObservationID, trait))
+
+
+## First, replace the permuted values with observed values where available, 
+# then, scale variables to unit variance by dividing them with their sd
+
+`%notin%` <- Negate(`%in%`)
+
+trait_imp4 <- trait_imp3 %>%
+  rownames_to_column(var = "ObservationID") %>%
+  mutate(ObservationID = as.character(ObservationID)) %>%
+  mutate(ObservationID = str_replace_all(ObservationID, "\\s", "")) %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "value", names_to = "trait") %>%
+  mutate(ID_trait = paste(ObservationID, trait)) %>%
+  filter(ID_trait %notin% traits_noNA$ID_trait) %>%
+  bind_rows(traits_noNA) %>%
+  select(-c(ID_trait)) %>%
+  pivot_wider(names_from = "trait", values_from = "value") %>%
+  mutate(across(where(is.numeric), ~.+abs(min(.)))) %>%
+  mutate(across(where(is.numeric), ~.+0.00000000001)) %>%
+  mutate(across(where(is.numeric), ~ c(scale(., center = FALSE)))) 
+
+trait_imp_final <- arranged %>% 
+  select(ObservationID, acceptedNameUsageID, genus, family, order, wfo_match) %>%
+  mutate(ObservationID = as.character(ObservationID)) %>%
+  full_join(trait_imp4)
+
+```
+
+```{r references}
+
+ref <- try_traits_tax_final %>%
+  select(TraitName, Reference, TraitID) %>%
+  distinct() %>%
+  filter(Reference != "unpub.")
+
+ref_save <- ref %>% 
+  select(Reference) %>%
+  distinct() #%>%
+  arrange(Reference)
+
+write_xlsx(ref_save, path = "docs/ref_save.xlsx")
+write_xlsx(ref, path = "docs/ref_.xlsx")
+
+```

@@ -1,0 +1,264 @@
+---
+title: "1. Data_analysis"
+author: "Jelyn Gerkema"
+date: "2023-07-11"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Set up 
+
+```{r set up}
+
+source("src/settings.R")
+source("src/functions.R")
+source("src/maxent2.R")
+source("src/maxenttest2.R")
+source("src/trait_information.R")
+source("src/maxenttest2_annotated.R")
+
+load("data/processed/LVD_processed_Bioland.RData")
+
+Plot_jaar <- LVD_header_clean %>%
+  select(c(Plot_code, jaar))
+
+```
+
+## 2. Running the model 
+
+### 2.1 Setting up multiple cores
+
+```{r setting up cores}
+
+#Determines amount of cores, substract four to keep to pc free for other processes.
+n_cores <- parallel::detectCores() - 4 
+
+my_cluster <- makeSOCKcluster(n_cores)
+
+registerDoSNOW(cl = my_cluster)
+
+foreach::getDoParRegistered() # check if cluster is set up
+
+```
+
+### 2.2 Running the CATS model
+
+```{r actually runnin the model}
+
+
+year_vector <- c("2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2022")
+
+test <- LVD_header_clean %>%
+  filter(Plot_code == 710507)
+plot <- 292424
+y <- 2014
+
+output_df <- data.frame()
+output_nmds <- data.frame()
+
+for(y in year_vector){
+
+input <- processed_specieslvl_V2
+
+plot_code_vector <- Plot_jaar %>%
+  filter(jaar == y) %>%
+  arrange(Plot_code) %>%
+  pull(Plot_code) 
+
+  plot_code_match <- input[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() 
+  
+  plot_code_match <-  plot_code_match[rownames(plot_code_match) %in% plot_code_vector, ] %>%
+    rownames_to_column(var = "Plot_code") %>%
+    arrange(Plot_code) %>%
+    pull(Plot_code) 
+  
+coordinates <- LVD_header_clean %>% 
+  filter(Plot_code %in% plot_code_match) %>%
+  arrange(Plot_code) %>%
+  select(`X coordinate`, `Y coordinate`, Plot_code) %>% 
+  as.matrix()
+
+dist <- distm(coordinates) %>%
+  as.data.frame() %>%
+  setNames(plot_code_match) %>%
+  mutate(Plot_code = plot_code_match) %>%
+  relocate(Plot_code) %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "Distance", names_to = "Other_plot") 
+  
+  ?distm
+  pb <- progress::progress_bar$new(
+    format = "(Plot (n) = :Plot [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]",
+    total = length(plot_code_match),
+    complete = "=", 
+    incomplete = "-", 
+    current = ">", 
+    clear = FALSE, 
+    width = 100
+  ) 
+#plot <- "293257"
+plot_n <- 1:length(plot_code_match)
+  
+progress <- function(n) {
+  pb$tick(tokens = list(Plot = plot_n[n]))
+  }
+
+opts <- list(progress = progress)
+
+cats_output <- foreach(
+  plot = plot_code_match, .combine = "rbind", .options.snow = opts,
+  .errorhandling = "remove",
+  .packages =
+  list_of_packages
+  ) %dopar% {
+
+    
+  plot_dist <- dist %>%
+    subset(Plot_code %in% plot) %>%
+    dplyr::filter(Distance < 5000) %>%
+    pull(Other_plot)
+    
+  input_year <- as.matrix(input[["relative_abundances"]][["matrix4traits"]]) %>%
+    t() %>%
+    as.data.frame() %>%
+    select(matches(plot_dist)) %>%
+    mutate(Total_cover = rowSums(.)) %>%
+    select(Total_cover) %>%
+    dplyr::filter(Total_cover != 0) %>%
+    mutate(Relative_meta_cover = Total_cover / sum(Total_cover)) 
+
+  states <- input[["trait_species_match"]] %>%
+    dplyr::filter(Name %in% rownames(input_year)) %>%
+    column_to_rownames(var = "Name") %>%
+    t() %>% as.data.frame()
+  
+  meta_prior <- input_year %>% pull(Relative_meta_cover)  
+    
+    constraints_temp <- input[["calculations_cwm_cwv"]] %>%
+      subset(Plot_code %in% plot) %>%
+      select(all_of(cwm_names)) 
+
+    relative_cover_temp <- input[["relative_abundances"]][["matrix4traits_prop"]] %>%
+      as.data.frame() %>%
+      subset(rownames(.) %in% plot) %>%
+      select(all_of(colnames(states))) 
+     
+
+
+    # calculating model using the community-weighted trait plus a uniform prior...
+    fit1 <- maxent2(constr = constraints_temp, states = states, lambda = TRUE)
+    temp1 <- maxent.test2(model = fit1, obs = relative_cover_temp, nperm = 80, quick = FALSE, plot = FALSE)
+
+    # Extract the lambda values
+    lambda_fit1 <- list(fit1$lambda) %>%
+      as.data.frame(col.names = c("Lambda_fit1")) %>%
+      rownames_to_column(var = "Trait") %>%
+      mutate(Trait = paste(Trait, "fit1")) %>%
+      pivot_wider(names_from = "Trait", values_from = "Lambda_fit1")
+
+    # an ESTIMATE (using 99 permutations) of model bias (model.mean.null.given.uniform)
+    model.mean.null.given.uniform <- temp1$mean.KLR2.null
+    model.bias <- model.mean.null.given.uniform
+    pval.uniform <- temp1$pval
+
+    # model fit using the CWM and only the uniform prior...
+    model.uniform.prior.plus.traits <- temp1$KLR2.prior.plus.traits
+
+    # if the model using the maximally uninformative prior plus traits is less than the
+    # model bias, then correct...
+    if (model.uniform.prior.plus.traits < model.bias) {
+      model.uniform.prior.plus.traits <-
+        model.bias
+    }
+
+    # calculating model using the CWM plus metacommunity prior
+    fit2 <- maxent2(constr = constraints_temp, states = states, prior = meta_prior, lambda = TRUE)
+    temp2 <- maxenttest2(model = fit2, obs = relative_cover_temp, nperm = 99, quick = FALSE, plot = FALSE)
+
+    # Extract the lambda values
+    lambda_fit2 <- list(fit2$lambda) %>%
+      as.data.frame(col.names = c("Lambda_fit2")) %>%
+      rownames_to_column(var = "Trait") %>%
+      mutate(Trait = paste(Trait, "fit2")) %>%
+      pivot_wider(names_from = "Trait", values_from = "Lambda_fit2")
+
+    model.mean.null.given.prior <- temp2$mean.KLR2.null
+
+    # if this null, given the metacommunity prior, is less than the mean given the maximally
+    # uniformative prior, then correct...
+    if (model.mean.null.given.prior < model.bias) {
+      model.mean.null.given.prior <-
+        model.bias
+    }
+
+    # fit using the CWM and the metacommunity prior...
+    model.prior.plus.traits <- temp2$KLR2.prior.plus.traits
+
+    # if this model, given the metacommunity prior and the traits, is less than the fit of the model using
+    # the maximally uniformative prior and the traits, then correct...
+    if (model.prior.plus.traits < model.uniform.prior.plus.traits) model.prior.plus.traits <- model.uniform.prior.plus.traits
+
+    # OWN ADDITION. If the model given the metacommunity prior and the traits, is less than the fit of the model using the 
+  #   metacommunity prior and permuted traits, then correct...
+    if(model.prior.plus.traits < model.mean.null.given.prior) model.prior.plus.traits <- model.mean.null.given.prior
+    
+    
+    pval.meta <- temp2$pval
+    
+    all_KLR2 <- cbind(
+      model.bias, model.uniform.prior.plus.traits,
+      model.mean.null.given.prior, model.prior.plus.traits, model.mean.null.given.uniform,
+      lambda_fit1, lambda_fit2, pval.uniform, pval.meta
+    ) %>%
+      as.data.frame() %>%
+      mutate(Plot_code = plot)
+
+    gc()
+    
+    return(all_KLR2)
+  }
+
+output_df <- bind_rows(output_df, cats_output)
+
+MDS_input <- input[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() 
+  
+MDS_input <-  MDS_input[rownames(MDS_input) %in% plot_code_match, ]
+
+nmds_results <- metaMDS(comm = MDS_input, distance = "bray", try = 100)
+
+nmds_scores <- as.data.frame(scores(nmds_results)$sites) %>%  rownames_to_column(var = "Plot_code") 
+
+output_nmds <- bind_rows(output_nmds, nmds_scores)
+
+}
+
+unregister_dopar()
+
+backup <- output_df
+
+save(output_df, output_nmds, file = "data/processed/LVD_cats_output_years_Bioland5000_final.RData")
+
+```
+
+## 3. NMDS
+
+```{r NMDS}
+
+MDS_input <- processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() 
+  
+MDS_input <-  MDS_input[rownames(MDS_input) %in% plots, ]
+
+nmds_results <- metaMDS(comm = MDS_input, distance = "bray", try = 100)
+
+
+nmds_scores <- as.data.frame(scores(nmds_results)$sites) %>%  rownames_to_column(var = "Plot_code") 
+
+```
+

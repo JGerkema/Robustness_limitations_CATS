@@ -1,0 +1,442 @@
+---
+title: "TRY database"
+author: "Jelyn Gerkema"
+date: "2023-11-17"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings.R")
+source("src/functions.R")
+
+try_categorical <- read_excel("data/raw/TRY/TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx")
+try_taxonomic <- read_excel("data/raw/TRY/try_taxonomic.xlsx")
+library(WorldFlora)
+
+
+
+```
+
+
+```{r try}
+classification <- read_delim("data/raw/classification.csv", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE)
+
+library(rtry)
+
+TRYdata1 <- rtry_import(path_to_data)
+
+tmp_unfiltered <- rtry_select_row(TRYdata1, DataID %in% 413)
+
+tmp_unfiltered <- rtry_explore(tmp_unfiltered, DataID, DataName, OriglName, OrigValueStr, OrigUnitStr, StdValue, Comment, sortBy = OrigValueStr)
+
+
+try_ls <- rtry_exclude(TRYdata1, (DataID %in% 413) & 
+                         (OrigValueStr %in% c("13 weeks after sowing, 8 weeks after start of treatments",
+          "check", "compound", "immature", "intermed", "junvenil", "juvenil", "Juvenil", "juvenil (3 years)",
+          "juvenil: 0.5-2.5 m high", "juvenile", "Juvenile", "juvenile, 11-14 weeks", "Juvenile, 15 years",
+          "juvenile, 6 weeks", "S", "sapling", "Sapling (1 - 10 y)", "saplings", "saplings (height 1-2m)",
+          "saplings, 5 - 10 years", "second years after sowing seeds (relatively juvenile for most of species)",
+          "seedling", "Seedling", "Seedling (0 - 1 y)", "seedlings", "seedlings, < 1/2 year", 
+          "seedlings, 1st year", "seedlings, 6 month old", "T", "T/F", "T?", "Y", "young", "Young leaves", 
+          "young tree", "young trees at  0.5-3m height", "young, not seedlings")), baseOn = ObservationID)
+
+
+tmp_unfiltered <- rtry_select_row(TRYdata1, DataID %in% 327)
+
+tmp_unfiltered <- rtry_explore(tmp_unfiltered, DataID, DataName, OriglName, OrigValueStr, OrigUnitStr, StdValue, Comment, sortBy = OrigValueStr)
+
+try_ls_exp <- rtry_exclude(try_ls, (DataID %in% 327) & 
+                         (OrigValueStr %in% c("BAU-Abandonnée/Nardaie Reposoir", 
+          "BAU-Abandonnée/Nardaie non paturée", "BAU-Abandonnée/prairie grasse non paturée", 
+          "BAU-Abandonée/Seslérie non paturée.", "BAU-Nardaie paturée.", 
+          "BAU-Paturée Intermediaire Grasse-seslérie",
+          "BAU-Prairie grasse paturée", "BAU-Prairie à Seslérie paturée", "Branch Bag", "C", "CG", "Chamber",
+          "Climate Chamber", "Climate chamber, non-limiting conditions, (cf. dataset reference)", 
+          "Common Garden", "Common Garden Experiment", "Common garden", "Common garden trees", 
+          "Controlled climate chamber", "Dry Plot", "Experimental, Glasshouse", "FACE",
+          "FE", "Field Experiment", "Fully open overstory 90 days, seedling", 
+          "Fully open overstory, seedling", "G", "GH", "Glass house", "Glasshouse", 
+          "Glasshouse experiment", "Greehouse", "Green house", "Greenhouse", "Greenhouse plants",
+          "Greenhouse, Indiana University", "Greenhouse, grrowth container", 
+          "Greenhouse: highlight_highpH_competition", "Greenhouse: highlight_highpH_nocompetition",
+          "Greenhouse: highlight_lowpH_competition", "Greenhouse: highlight_lowpH_nocompetition",
+          "Greenhouse: lowleight_lowpH_competition", "Greenhouse: lowlight_highpH_competition",
+          "Greenhouse: lowlight_highpH_nocompetition", "Greenhouse: lowlight_lowpH_nocompetition",
+          "Grown from seed sown in outdoor field experiment", "Growth Chamber", "Growth chamber", 
+          "Growth exp", "Harte warming experiment (montane meadow)", 
+          "I do not like this paper. Results looks questionable", 
+          "Irrigation and N fertilisation (100 kg/ha)", "LAU_Grazed/Abandoned", 
+          "LAU_Never ploughed/grazed", "LAU_Never ploughed/grazed highland", 
+          "LAU_Never ploughed/grazed slopes", "LAU_Never ploughed/mown", "LAU_Ploughed/grazed",
+          "LAU_Ploughed/mown", "LAU_Ploughed/mown and fertilized", 
+          "Large potted monoculture mesocosms, outside, soil from local meadow,  grazing and harvests emulated",
+          "Mature cultivated", "Monoculture", "Natural/C", "OTC", "OTC O3", "OTC field", 
+          "Open Top", "Open top chambers", "Other", "Outdoor cultivation in 30x30cm pots, standardized substrate",
+          "Outdoor cultivations (4 repititions) grown in 30x30cm pots with standardized substrate. All pot ...",
+          "PM", "PU", "Partially open overstory 90 days, seedling", "Planted trees", "Planted vines",
+          "Pot exp", "Pot-grown", "Pots outside", "Siemianice", "Undisturbed, seedling", 
+          "University of California Botanical Garden", "VER_permanent meadow mown and fertilized",
+          "ER_permanent meadows mown and fertilized", "WTC", "botanical garden environment",
+          "branch bag", "climate chamber", "climate chambers", "comm.garden.Spain", 
+          "common garden in growth containers with soil corresponding to seed origin", 
+          "common garden, understorey", "controlled environment", "controlled environment room", 
+          "cultivated", "disturbed soil treatment; coniferous forest", 
+          "disturbed soil treatment; deciduous alluvial forest", "disturbed soil treatment; fallow wet meadow",
+          "drought treatment", "dry season measurements (see also #659)", "experimental",
+          "experimental treatment", 
+          "experimental warming with open top chambers during the snow-free period, increasing daily mean  ...",
+          "experimental, in pots outside", "experimental, outside in pots", "field experiment",
+          "forest fertilization", "glasshouse, climate controlled", 
+          "glasshouse, plastic tubes 10cm diameter, 100 cm depth", "grassland common garden", "greenhouse",
+          "greenhouse - Northern Arizona University (standard controlled environment)", "growth chamber",
+          "growth-chamber", "growth_chamber", "hydroponic", "lab", "mesocosm", "mesocosm, 50l pots",
+          "mini-ecosystem", "natural environment, high warming +4C, preccipitation ambient",
+          "natural environment, high warming +4C, preccipitation ambient +50%", 
+          "natural environment, high warming +4C, preccipitation ambient -50%",
+          "natural environment, low warming +1.5C, preccipitation ambient",
+          "natural environment, low warming +1.5C, preccipitation ambient +50%", 
+          "natural environment, low warming +1.5C, preccipitation ambient -50%", 
+          "natural environment, medium warming +2.5C, preccipitation ambient",
+          "natural environment, medium warming +2.5C, preccipitation ambient +50%",
+          "natural environment, medium warming +2.5C, preccipitation ambient -50%",
+          "natural environment, no warming, preccipitation ambient +50%",
+          "natural environment, no warming, preccipitation ambient -50%",
+          "natural grassland, experimental nutrient NP addition", "nursery",
+          "nutrient addition experiment", "open-sided growth chamber", "open-top chamber",
+          "open-top chambers", "pot", "pots, outside in natural environment", "shade houses",
+          "smelter polluted environment", "water stress experiment", "water treatment", 
+          "whole-tree chamber", "plantation")), baseOn = ObservationID)
+
+tmp_unfiltered <- rtry_select_row(TRYdata1, DataID %in% 1961)
+
+tmp_unfiltered <- rtry_explore(tmp_unfiltered, DataID, DataName, OriglName, OrigValueStr, OrigUnitStr, StdValue, Comment, sortBy = OrigValueStr)
+
+try_ls_exp_hlth <- rtry_exclude(try_ls_exp, (DataID %in% 1961) & 
+                         (OrigValueStr %in% c("Dead")), baseOn = ObservationID)
+
+try_covariate <- try_filtered %>%
+  filter(is.na(TraitID))
+
+covariates <- unique(try_covariate$DataName) %>% as.data.frame()
+
+try_filtered <- rtry_remove_dup(try_ls_exp_hlth)
+
+tmp_unfiltered <- rtry_explore(try_filtered, DataID, DataName, TraitID, TraitName, ErrorRisk, sortBy = ErrorRisk)
+
+try_filtered <- rtry_exclude(try_filtered, ErrorRisk >= 3, baseOn = ObsDataID) 
+
+
+
+try_filtered <- try_filtered %>%
+  filter(AccSpeciesName %notin% c("unknown", "Herbaceous", "Graminoid", "grass", "Buxuxu", "Palm", "Tree", 
+  "Bamboo", "Shrub", "Vine", "forb", "Fern", "Pallida", "Birch", "Spruce", "Triticosecale", 
+  "Tachi", "Taxi", "Mid", "Geophyte", "Grasses", "Conifers", "Forest", "Muiraba", "Ucuubarana", 
+  "Jutai-mirim", "Amapai", "Amarelao", "Muiracatiara", "Janita", "Jutai-acu", "Muirapinima", 
+  "Jarana", "Louro", "Morototo", "Muirauba", "GUARUBARANA", "AROEIRA", "GUARIUBA", "MAMORANA", 
+  "URUCURANA", "QUINARANA", "CAFERANA", "ANARAI", "PITOMBA", "CHICUA", "POIZOROQUEIRA", 
+  "Quarubarana", "ANANI", "GOIABINHA", "ABIURANA", "PIQUIA", "ACHICHA", "SABOEIRO", "COCAO", 
+  "PARAPARA", "SUCUUBA", "URUAZEIRO", "MUIRAPICHONA", "AMADAI", "EMBAUBARANA", "INAJARANA", 
+  "MUIRATINGA", "LIMORANA", "ANDIROBARANA", "BABACU", "MUIRARANA", "CUNARIO", "GINJA", 
+  "ACARIQUARANA", "ARATAJILRANA", "TATAPIRIRICA", "QUARIQUARANA", "ACARIQUARA", "PUROI", 
+  "PARA", "ANDIROBA", "CARALLE", "ARATASIURANA", "PAMA", "CARAPAMAUBA", "PAPAROLA", "CARADANAUBA", 
+  "ROSADINHO", "JATAUBA", "BARBATINAO", "CUPUI", "CIIJIA", "SARDINHEIRA", "PASACINHEIRA", "AQUIQUI", 
+  "AMARELINHO", "CUNAREO", "CUNARE", "JINGA", "MACUCU", "EMBAUBA", "MURUPITA", "PITAICA", "PADAROLA", 
+  "CAJUI", "QUARIQUARA", "MUTUTI", "JENIPARANA", "INAJA", "AMAVAI", "GOIABARNA", "ABDILOBARANA", 
+  "MUIRARENGA", "PASARINHARA", "PATIA", "MUIRAPIRANGA", "ACHUA", "Pajurazinho", "QUATAQUACAUA", 
+  "BACABA", "MUUBA", "CUMAT", "BABTIMAO", "MAPARAJUBA", "UCHIRANA", "Bindweed", "Triticale", 
+  "Brassolaeliocattleya_x", "Moss", "Broadleaved Deciduous Trees", "Broadleaved Evergreen Trees", 
+  "Broadleaved Trees", "Buxuxu new", "Buxuxu old", "Deciduous Tree Field", "Deciduous shrub", 
+  "Evergreen shrub", "Evergreen tree", "evergreen shrubs and trees", "Aa sp", "Acacia sp", "Acalypha sp",
+  "Acantholimon sp", "Acer sp", "Aegilops sp", "Aegiphila sp", "Aeschynomene sp", "Agathosma sp", 
+  "Ageratina sp", "Agropyron sp", "Agrostis sp", "Alchemilla sp", "Allium sp", "Allophylus sp", 
+  "Amaranthus sp", "Amelanchier sp", "Amsinckia sp", "Anaphalis sp", "Andropogon sp", "Annospraguei sp",
+  "Antennaria sp", "Anthemis sp", "Anthurium sp", "Anthyllis sp", "Antidesma sp", "Aragebortia sp",
+  "Arctostaphylos sp", "Ardisia sp", "Aristida sp", "Artemisia sp", "Asparagus sp", "Asplenium sp", 
+  "Aster sp", "Astragalus sp", "Atriplex sp", "Avena sp", "Baccharis sp", "Bajorazinho sp", "Bauhinia sp",
+  "Begonia sp", "Beilschmiedia sp", "Berberis sp", "Betula sp", "Bidens sp", "Bignonia sp", "Blechnum sp",
+  "Boehmeria sp", "Boerhavia sp", "Brassica sp", "Bromus sp", "Buddleja sp", "Bupleurum sp", "Byrsonima sp",
+  "Caesalpinia sp", "Calamagrostis sp", "Calathea sp", "Callicarpa sp", "Callitriche sp", "Calophyllum sp",
+  "Camellia sp", "Campanula sp", "Canarium sp", "Caneleira sp", "Canthium sp", "Capparis sp", 
+  "Caragana sp", "Cardamine sp", "Carex sp", "Cariniaestrellensis sp", "Cariniaianeirensis sp", 
+  "Casearia sp", "Cassia sp", "Castanopsis sp", "Castilleja sp", "Cattleya sp", "Ceanothus sp", 
+  "Cenchrus sp", "Centaurea sp", "Cerastium sp", "Chamaecrista sp", "Chamaedorea sp", "Chenopodium sp",
+  "Chionanthus sp", "Chrysophyllum sp", "Cinchona sp", "Cinnamomum sp", "Cirsium sp", "Cissus sp", 
+  "Citharexylum sp", "Clematis sp", "Clerodendrum sp", "Clidemia sp", "Coccoloba sp", "Combretum sp", 
+  "Commelina sp", "Commiphora sp", "Coprosma sp", "Cotoneaster sp", "Crassula sp", "Crataegus sp", 
+  "Crotalaria sp", "Croton sp", "Cryptantha sp", "Cryptocarya sp", "Cuiarana sp", "CumarAl sp", 
+  "Cupiuba sp", "Cupressus sp", "Cyathea sp", "Cyclosorus sp", "Cymbidium sp", "Cyperus sp", 
+  "Cyrtandra sp", "Dalbergia sp", "Danthonia sp", "Delphinium sp", "Deschampsia sp", "Desmodium sp", 
+  "Dianella sp", "Dianthus sp", "Dichanthelium sp", "Dichapetalum sp", "Digitaria sp", "Dioscorea sp", 
+  "Diospyros sp", "Dolichos sp", "Draba sp", "Dracocephalum sp", "Drypetes sp", "Dysoxylum sp", 
+  "Echinochloa sp", "Echinops sp", "Elaeocarpus sp", "Elaphoglossum sp", "Elatostema sp", 
+  "Eleocharis sp", "Enaclya sp", "Encyclia sp", "Epidendrum sp", "Epilobium sp", "Equisetum sp", 
+  "Eragrostis sp", "Eremophila sp", "Eri sp", "Eria sp", "Erianthus sp", "Erica sp", "Erigeron sp", 
+  "Eriosema sp", "Erythrina sp", "Erythroxylum sp", "Eucalyptus sp", "Eugenia sp", "Euphorbia sp", 
+  "Euphrasia sp", "Festuca sp", "Ficus sp", "Fimbristylis sp", "Fragaria sp", "Fraxinus sp", 
+  "Freycinetia sp", "Galactia sp", "Galium sp", "Garcinia sp", "Gardenia sp", "Gaultheria sp", 
+  "Gentiana sp", "Geranium sp", "Gevuiavella sp", "Gladiolus sp", "Glochidion sp", "Gombeira sp", 
+  "Gonolobus sp", "Goodenia sp", "Gossypium sp", "Graminoids sp", "Guatteria sp", "Gymnosporia sp", 
+  "Haplopappus sp", "Helianthus sp", "Helichrysum sp", "Heliophila sp", "Heliotropium sp", 
+  "Hermannia sp", "Heteropterys sp", "Hibbertia sp", "Hibiscus sp", "Hieracium sp", "Homalium sp", 
+  "Homalomena sp", "Hymenophyllum sp", "Ilex sp", "Impatiens sp", "Indigofera sp", "Iris sp", 
+  "Jacquemontia sp", "Jasminum sp", "Juncus sp", "Juniperus sp", "Justicia sp", "Koeleria sp", 
+  "Lasianthus sp", "Lathyrus sp", "Lepidium sp", "Leptospermum sp", "Leucadendron sp", "Leucopogon sp", 
+  "Limonium sp", "Lindsaea sp", "Lithocarpus sp", "Lithospermum sp", "Lobelia sp", "Lonchocarpus sp", 
+  "Lonicera sp", "Lotononis sp", "Ludwigia sp", "Lupinus sp", "Lycopodium sp", "Macaranduba sp", 
+  "Macaranga sp", "Machaerium sp", "Macrolobium sp", "Magnolia sp", "Mallotus sp", "Mammillaria sp", 
+  "Marsdenia sp", "Maytenus sp", "Medicago sp", "Medinilla sp", "Melaleuca sp", "Melancieira sp", 
+  "Melastoma sp", "Melicope sp", "Melilotus sp", "Memecylon sp", "Mentha sp", "Miconia sp", "Mimosa sp", 
+  "Mimusops sp", "Myrcia sp", "Myristica sp", "Nectandra sp", "Nymphaea sp", "Oenothera sp", 
+  "Oldenlandia sp", "Oncidium sp", "Ophiorrhiza sp", "Orchis sp", "Oxalis sp", "Oxytropis sp", 
+  "Palicourea sp", "Pandanus sp", "Panicum sp", "Paraputaca sp", "Parsonsia sp", "Paspalum sp", 
+  "Paullinia sp", "Pedicularis sp", "Pelargonium sp", "Pentacalia sp", "Peperomia sp", "Pera sp", 
+  "Phalaenopsis sp", "Philodendron sp", "Phyllanthus sp", "Pinus sp", "Piper sp", "Piquiarana sp", 
+  "Pitcairnia sp", "Pithecellobium sp", "Plantago sp", "Plectranthus sp", "Pleopeltis sp", 
+  "Pleurothallis sp", "Poa sp", "Podocarpus sp", "Polyalthia sp", "Polygala sp", "Polygonum sp", 
+  "Pororoqueira sp", "Potamogeton sp", "Potentilla sp", "Pouteria sp", "Prasophyllum sp", 
+  "Prenanthes sp", "Primula sp", "Primulina sp", "Prunus sp", "Psoralea sp", "Psychotria sp", 
+  "Pterocarpus sp", "Pterostylis sp", "Puccinellia sp", "Pultenaea sp", "Pyrethrum sp", "Pyrus sp", 
+  "Quercus sp", "Ranunculus sp", "Rhododendron sp", "Rhus sp", "Rhynchospora sp", "Rosa sp", 
+  "Rubus sp", "Saccharum sp", "Salix sp", "Salvia sp", "Sambucus sp", "Saurauia sp", "Saussurea sp", 
+  "Saxifraga sp", "Scabiosa sp", "Scaevola sp", "Schefflera sp", "Schismatoglottis sp", "Schoenus sp", 
+  "Scirpus sp", "Sclerobium sp", "Scrophularia sp", "Scutellaria sp", "Selaginella sp", "Senecio sp", 
+  "Senegalia sp", "Seringueira sp", "Sida sp", "Sideroxylon sp", "Silene sp", "Siparudecipiens sp", 
+  "Sisymbrium sp", "Sisyrinchium sp", "Solanum sp", "Solidago sp", "Spermacoce sp", "Sporobolus sp", 
+  "Stachys sp", "Stellaria sp", "Sterculia sp", "Stipa sp", "Strobilanthes sp", "Strychnos sp", 
+  "Stylidium sp", "Swartzia sp", "Symplocos sp", "Syzygium sp", "Tabebuia sp", "Taraxacum sp", 
+  "Tectaria sp", "Tephrosia sp", "Terminalia sp", "Ternstroemia sp", "Tetrapterys sp", "Teucrium sp", 
+  "Thalictrum sp", "Thelypteris sp", "Thymus sp", "Tibouchina sp", "Tillandsia sp", "Timonius sp", 
+  "Tradescantia sp", "Tragopogon sp", "Trichilia sp", "Trichosanthes sp", "Trifolium sp", "Trigonella sp",
+  "Trisetum sp", "Triticum sp", "Urophyllum sp", "Vaccinium sp", "Valeriana sp", "Verbascum sp", 
+  "Vernonia sp", "Veronica sp", "Viburnum sp", "Vicia sp", "Viola sp", "Vittaria sp", 
+  "Wahlenbergia sp", "Weinmannia sp", "Zanthoxylum sp", "Ziziphus sp", "Zygophyllum sp")) 
+  #This included species that had a questionable match within the WorldFlora database
+  #s
+
+try_taxonomic_2 <- try_taxonomic %>%
+  rename(AccSpeciesID = TRY_AccSpeciesID,
+         AccSpeciesName = TRY_AccSpeciesName) %>%
+  select(AccSpeciesID, AccSpeciesName, Genus, Family) %>%
+  distinct()
+ 
+colnames(try_taxonomic_2) 
+
+
+test_pls <- try_clean %>%
+  select(AccSpeciesName) %>%
+  distinct() %>%
+  left_join(try_taxonomic_2) %>%
+  drop_na(Genus) %>%
+  drop_na(Family)
+
+test <- try_taxonomic %>%
+  filter(TRY_AccSpeciesName == "TATAPIRIRICA")
+
+test2 <- try_filtered %>%
+  filter(AccSpeciesName == "Moss")
+
+try_jezus <- try_filtered %>%
+  select(-c(genus, sp)) %>%
+  mutate(try_orig = "Yes") %>%
+  full_join(try_taxonomic_2) 
+
+
+sum(is.na(test_pls$Family))
+length(unique(try_jezus$AccSpeciesName))
+2+1
+try_clean <- try_filtered %>%
+  mutate(OrigValueStr =  case_when(OrigValueStr == "c3" ~ "C3",
+                             OrigValueStr == "C3?" ~ "C3",
+                             OrigValueStr == "c4" ~ "C4",
+                             OrigValueStr == "C4?" ~ "C4",
+                             TRUE ~ OrigValueStr)) %>%
+  mutate(AccSpeciesName = case_when(AccSpeciesName == "Knautia arvensis subsp. arvensis
+" ~ "Knautia arvensis",
+TRUE ~ AccSpeciesName)) %>%
+  filter(DataID %notin% c(8178, 9780, 1629, 1739, 974, 2526, 2760, 2527, 2761, 
+                          9906, 2762, 9578, 9577, 9576, 9575, 9574, 3710, 2958, 
+                          9447, 8651, 8643, 8648, 8642, 8650, 8647, 8646, 8649, 
+                          8645, 8644, 2373, 2380, 2365, 2367, 2375, 2381, 3809, 
+                          3812, 3814, 3811, 3816, 225, 2082, 2142, 3990, 3991, 
+                          2412, 2413, 2414, 904, 1271, 9926, 9931, 27, 9898, 
+                          9899, 9900, 9901, 476, 2506, 829, 2499, 2500, 1027, 
+                          1028, 2311, 4142, 3974, 3979, 3980, 3978, 3976, 3975, 
+                          3977)) %>%
+  filter(TraitID %in% c(3, 4, 13, 14, 15, 18, 22, 24, 26, 27, 46, 47, 48, 53, 54, 
+                        59, 70, 71, 83, 89, 145, 146, 164, 246, 334, 785, 819, 839, 
+                        1047, 1080, 1181, 1256, 3106, 3113, 3117, 3588, 3801)) %>%
+  drop_na(StdValue) %>%
+  select(AccSpeciesName, TraitID, ObservationID, TraitName, StdValue) %>%
+  group_by(AccSpeciesName, ObservationID, TraitID, TraitName) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = TRUE))) %>%
+  ungroup() %>%
+  mutate(AccSpeciesName = tolower(AccSpeciesName)) %>%
+  mutate(AccSpeciesName = paste0(tools::toTitleCase(word(AccSpeciesName, 1)), " ", word(AccSpeciesName, 2, -1))) 
+
+# This extracts all the species names from the try database
+try_species <- try_clean %>%
+  select(AccSpeciesName) %>%
+  distinct() %>%
+  mutate(try_species = "Yes") # 68812 species in total
+
+# The current, Accepted Species Name list is hold againts the classification file from
+# the World Flora database to check if there is a perfect match. 
+try_tax_wf_first <- classification %>%
+  filter(taxonomicStatus != "Synonym") %>%
+  filter(taxonID %notin% c("wfo-1200010625", "wfo-1200010660", "wfo-0001233171")) %>% 
+  # Remove entries of three species with the wrong family name 
+  select(scientificName, family, genus) %>%
+  rename(AccSpeciesName = scientificName) %>%
+  left_join(try_species) %>%
+  distinct() %>%
+  filter(try_species == "Yes") #57379 species are present in the World Flora database
+
+# Not all species have a perfect match, this retrieves the species names that are not in the WorldFlora database
+not_included <- try_species %>%
+  filter(AccSpeciesName %notin% c(try_tax_wf_first$AccSpeciesName)) %>%
+  pull(AccSpeciesName)
+
+# They are fuzzy matched against the WFO database. 
+wfo_match <- WFO.match(spec.data = not_included, WFO.data = classification)
+
+# The species that have a match now
+included_now <- wfo_match %>%
+  filter(Matched == TRUE) %>%
+  filter(taxonRank %notin% c("genus", "family")) %>%
+  separate(spec.name, into = c("genus", "sp"), extra = "merge", remove = FALSE) %>%
+  filter(sp != "sp") %>%
+  filter(Subseq == 1)
+
+
+# Species that don't have a match
+still_not_included <- tax_test %>%
+  filter(Matched == FALSE) %>%
+  separate(spec.name, into = c("genus", "sp"), extra = "merge", remove = FALSE) %>%
+  filter(sp != "sp")  %>%
+  mutate(spec.name_new = tolower(spec.name)) %>%
+  mutate(spec.name_new = paste0(tools::toTitleCase(word(spec.name_new, 1)), " ", word(spec.name_new, 2, -1))) %>%
+  select(spec.name, spec.name_new) %>%
+  rename(spec.name_old = spec.name, spec.name = spec.name_new)
+
+
+still_not_included_list <- still_not_included %>%
+  pull(spec.name)
+
+tax_test2 <- WFO.match(spec.data = still_not_included_list, WFO.data = classification) 
+
+included_now_2 <- tax_test2 %>%
+  filter(taxonRank %notin% c("genus", "family")) %>%
+  filter(Matched == TRUE) %>%
+  filter(Subseq == 1) 
+
+included_now_both <- bind_rows(included_now, included_now_2) %>%
+  select(spec.name, scientificName) %>%
+  rename(AccSpeciesName = spec.name, new_name = scientificName) %>%
+  filter(AccSpeciesName %notin% c( "Dry alluvial", "Serpentine grass", 
+  "Perennial grasses", "deciduous chaparral shrubs", "Mesophytic meadow",
+  "tropical evergreen trees", "Graminoid abandoned area", "Harvest Residues",
+  "Pubescent rosette", "Senna form taxon 'filifolia'", "Stoloniferous grass",
+  "Graminoid pasture", "Meadow steppe", "Tropical Cultivar", "Dwarf shrub", "Graminoid meadow", 
+  "Tropical manaus",  "Wetland grass", "Annual grass",  "Fava de", "Para para", "Ita alba preta",
+  "Eri sch", "Desmopsis laeve", "Sloanea oppd", "Carex dark green", "Envira preta", 
+  "Randia gorky", "Bunchosia myrt", "Castanha de", "Cupania verde", "Zombia anomala",
+  "Sloanea oak", "Abacaba palm", "Araca da mata", "Cacao da mata", "Tall catinga species",
+  "Ucuuba da terra firme", "Ucuuba folha peluda", "Ucuuba t folha", "Ucuuba vermelha")) %>%
+  mutate(try_species = "Yes") 
+# Some found matches are not plausible. And some should not have been matched at all.
+# These are filtered out. 
+
+
+try_clean_wide <- try_clean %>%
+  select(-c(TraitID)) %>%
+  pivot_wider(values_from = StdValue, names_from = TraitName) %>%
+  mutate(AccSpeciesName = tolower(AccSpeciesName)) %>%
+  mutate(AccSpeciesName = paste0(tools::toTitleCase(word(AccSpeciesName, 1)), " ", word(AccSpeciesName, 2, -1))) 
+
+try_clean_wide_1 <- try_clean_wide %>%
+  filter(AccSpeciesName %in% c(try_tax_wf$AccSpeciesName)) 
+
+try_clean_wide_2 <- included_now_both %>%
+  left_join(try_clean_wide) %>%
+  select(-c(AccSpeciesName)) %>%
+  rename(AccSpeciesName = new_name) 
+
+try_clean_wide_both <- bind_rows(try_clean_wide_1, try_clean_wide_2) %>%
+  select(-c(new_name, try_species)) %>%
+  mutate(try_species = "Yes")
+
+
+try_tax_wf_final <- classification %>%
+  filter(taxonomicStatus != "Synonym") %>%
+  filter(taxonID %notin% c("wfo-1200010625", "wfo-1200010660", "wfo-0001233171")) %>% 
+  # Remove entries of three species with the wrong family name 
+  select(scientificName, family, genus) %>%
+  rename(AccSpeciesName = scientificName) %>%
+  distinct() %>%
+  left_join(try_clean_wide_both) %>%
+  filter(try_species == "Yes") %>%
+  select(-c(try_species))
+
+na_sum <- colSums(is.na(try_tax_wf_final))  %>% 
+  as.data.frame() %>%
+  mutate(percentage = ./66782*100)
+
+
+
+save(try_filtered,
+  file = "data/processed/try_filtered.RData")
+
+save(try_tax_wf_final, 
+     file = "data/processed/try_tax.RData")
+
+
+temp <- try_filtered %>%
+  filter(ObservationID == 3061340)
+
+
+```
+
+```{r BHPMF}
+
+trait <- LEDA_all %>%
+  select(-c(genus, species, TraitID, o)) %>%
+  column_to_rownames(var = "Name") %>%
+  as.matrix()
+
+
+
+#The data must be normalized and linearized. A log transformation is used. But it could be that that is not the appropriate transformation. 
+back_trans_pars <- list()
+rm_col <- c()
+
+for(i in 1:ncol(trait)){
+x <- trait[,i] # goes through the columns
+min_x <- min(x,na.rm = T) # takes the min of each column
+if(min_x < 0.00000000001){
+x <- x - min_x + 1 # make this optional if min x is neg
+}
+logx <- log10(x)
+mlogx <- mean(logx, na.rm = T)
+slogx <- sd(logx, na.rm = T)
+x <- (logx - mlogx)/slogx # Z transformation
+back_trans_pars[[i]] <- list(min_x = min_x,
+mlogx = mlogx,
+slogx = slogx)
+trait[,i] <- x
+}
+
+
+
+
+
+```
+

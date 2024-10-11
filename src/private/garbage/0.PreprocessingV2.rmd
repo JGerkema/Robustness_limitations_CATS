@@ -1,0 +1,228 @@
+---
+title: "0.Preprocessing"
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings.R")
+source("src/functions.R")
+source("src/trait_information.R")
+ 
+```
+
+## 1.Clean data
+
+
+### 1.1 Chalmandrier et al. 2022
+```{r clean data}
+
+# The data of Chalmandrier has already been filtered in their own analysis. 
+# I use their raw cover and trait data but I extract their selected plot_codes so I can filter the raw data
+
+load("data/raw/Chalmandrier et al. 2022/data/data_ready.Rdata")
+
+plot_code_vector <- env_p %>%
+  pull(QuadID)
+
+# Remove unnecessary objects from the global environment
+rm(data)
+rm(obs.comm)
+rm(pdf_species)
+rm(t.avg)
+rm(env_p)
+
+# Cleaning the vegetation data so it can be used to filter the trait data. 
+# Some plots have traits but no cover data. The traits are used to impute missing values
+# but the plots are afterwards removed. Some plots have cover but no traits, these traits
+# are imputed by taking the species average across all plots. Some plots have cover and multiple
+# trait values for some species. For those plots, the average species value is taken. In addition,
+# trait data is created for the empty states,  ie. absent species in a certain plot. 
+
+chalmandrier_veg_cleantemp <- read_csv("data/raw/Chalmandrier et al. 2022/data/community.cover.23sp.csv") %>%
+  filter(QuadID %in% plot_code_vector) %>%
+  rename(Plot_code = QuadID) %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "cover", names_to = "Name") # %>%
+  #filter(cover != 0)
+
+
+chalmandrier_trait <- read_csv("data/raw/Chalmandrier et al. 2022/data/kettleholedata.23sp.csv") %>%
+  filter(QuadID %in% plot_code_vector) %>%
+  select(QuadID, poros, height, sla, species) %>%
+  rename(Plot_code = QuadID, Name = species) %>%
+  group_by(Plot_code, Name) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = TRUE))) %>% #In some quadrants, some species have multiple recordings, the average is taken here. 
+  ungroup() %>%
+  full_join(chalmandrier_veg_cleantemp) %>%
+  group_by(Name) %>%
+  mutate(across(.cols = c(poros, height, sla),  
+            ~replace_na(., 
+                        mean(., na.rm = TRUE)))) %>% # The NA's are filled up by the species mean
+  ungroup() %>%
+  arrange(Name) %>%
+  drop_na(cover) %>%
+  drop_na(poros) %>% # Some cases have no abundance data and no trait data, by dropping NA's 
+  # of one of the trait values, these cases (n = 134) are removed as well. 
+  select(-c(cover)) #%>%
+  #mutate(across(where(is.numeric), ~ c(scale(., center = FALSE)))) 
+
+trait_list <- c("poros", "height", "sla")
+cwm_names <- paste0(trait_list, "_cwm")
+cwv_names <- paste0(trait_list, "_cwv")
+
+trait_information <- lst(trait_list, cwm_names, cwv_names)
+
+# Cleaning the vegetation data so it can be used in the calculate_abundance function
+chalmandrier_cover <- read_csv("data/raw/Chalmandrier et al. 2022/data/community.cover.23sp.csv") %>%
+  filter(QuadID %in% plot_code_vector) %>%
+  rename(Plot_code = QuadID) %>%
+  column_to_rownames(var = "Plot_code") %>%
+  as.matrix() 
+
+# Species_list 
+species_list <- read_excel("data/raw/Chalmandrier et al. 2022/data/complete_species_names.xlsx")
+
+chalmandrier_clean <- lst(chalmandrier_cover, chalmandrier_trait, species_list, trait_information)
+
+``` 
+
+# Calculations
+```{r chalmandrier calculations}
+relative_abundances <- calculate_abundance(chalmandrier_cover, chalmandrier_trait, 0.8)
+trait_data <- chalmandrier_trait
+
+cwm_cwv_all_traits <- as.data.frame(plot_code_vector) %>%
+  rename(Plot_code = plot_code_vector)
+
+#backup_traits <- cwm_cwv_all_traits
+
+for(t in 1:length(traitlist)) {
+  
+  trait <- traitlist[t]
+  cwm_cwv_one_trait <- data.frame()
+  trait_cwm <- cwm_names[t]
+  trait_cwv <- cwv_names[t]
+  
+  for(p in plot_code_vector){
+    # Calculate 'community weighted means' (CWMs) by multiplying species proportional abundances by matched trait values and summing by site
+    
+    # Select one specific plot
+    veg_perplot <- as.data.frame(relative_abundances$matrix4traits_prop) %>%
+      filter(rownames(.) %in% p) 
+    
+    # Select the trait data of the same plot
+    trait_perplot <- trait_data %>%
+      filter(Plot_code == p)
+    
+    # The trait data contains only the data of present species while the veg data
+    # also contains empty states, ie. species with a relative abundance of 0.
+    # By matching trait data with the species list of the respective plot, 
+    # empty states are also created in the trait data. 
+    trait_perplot_temp <- trait_perplot[[trait]][match(
+      colnames(veg_perplot),
+      trait_perplot$Name)]
+    
+    # To ensure a 0*0 multiplication, the NA's created in the previous step
+    # are substituted with 0.
+    trait_perplot_temp[is.na(trait_perplot_temp)] <- 0
+    
+    # The community weighted mean is calculated by multiplying the relative
+    # abundance of each trait with it respective value. With matrix multiplications, 
+    # 
+    cwm <- as.data.frame((as.matrix(veg_perplot) %*% trait_perplot_temp)) %>%
+      rename({{trait_cwm}} := V1) 
+    
+
+  
+    veg_for_cwv <- veg_perplot %>%
+      pivot_longer(cols = 1:ncol(.), 
+                   values_to = "abundance", names_to = "Name") %>%
+      filter(abundance > 0) 
+    
+    #
+    trait_for_cwv <- trait_perplot %>%
+      filter(Name %in% veg_for_cwv$Name) %>%
+      pull({{trait}})
+    
+    veg_for_cwv <- veg_for_cwv %>%
+      pull(abundance) %>% as.matrix()
+      
+    trait_variance <- (trait_for_cwv - cwm[1,1])^2 
+  
+    #The brackets around veg_for_cwv * trait_variance are essential. 
+    # Otherwise it starts multiplying and colSumming simultaneously instead of
+    # sequentially. Not good. 
+    cwv <- (veg_for_cwv * trait_variance) %>%
+      colSums() %>%
+      as.data.frame() %>%
+      rename({{trait_cwv}} := .)
+
+    cwm_cwv <- bind_cols(cwm, cwv)
+    
+    cwm_cwv_one_trait <- bind_rows(cwm_cwv_one_trait, cwm_cwv) 
+    
+    
+    
+  }
+  
+  cwm_cwv_one_trait <- cwm_cwv_one_trait %>%
+    rownames_to_column(var = "Plot_code")  
+  
+  cwm_cwv_all_traits <- full_join(cwm_cwv_all_traits, cwm_cwv_one_trait)
+  
+}
+  
+
+# In de oorspronkelijke versie heb ik meer traits dan soorten, 
+# nu heb ik meert soorten dan traits omdat de empty states er ook nog inzitten.
+# dus daar moet ik ook op rekening mee houden
+
+# trait_perplot bevat alleen de soorten die ook daadwerkelijk aanwezig zijn in het plot
+# de cover matrix bevat ook empty states, soorten met een abundance van 0. 
+# door trait_perplot the filteren op basis van de column names van de vegetatie data 
+# i.e., de soorten, creert hij NA waardes in trait_perplot_temp, corresponderend 
+# met de column namen van de vegetatiedata. Door die vervolgens te vervangen voor 
+# 0 waardes, vermenigvuldig je uiteindelijk 0*0 waardoor ze niet mee tellen 
+# voor het berekenen van de community weighted variance. 
+
+
+
+  
+```
+
+`
+
+## 5. Perform calculations
+```{r calculations }
+
+processed_specieslvl <- lst(relative_abundances, cwm_cwv_all_traits, trait_data)
+
+diversity_info <- processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() %>% 
+  mutate(shannon = diversity(.[,1:ncol(.)], index = "shannon", MARGIN = 1, base = exp(1)),
+         simpson = diversity(.[,1:ncol(.)], index = "simpson", MARGIN = 1, base =exp(1)),
+         species_richness = specnumber(.[,1:ncol(.)], MARGIN = 1)) %>%
+  select(shannon, simpson, species_richness) %>%
+  rownames_to_column(var = "Plot_code") # base = exp(1) gives the shannon index a log e base
+
+save(processed_specieslvl, diversity_info,   
+  file = "data/processed/Char_processed.RData")
+
+
+```
+
+
+
+
+
+
+

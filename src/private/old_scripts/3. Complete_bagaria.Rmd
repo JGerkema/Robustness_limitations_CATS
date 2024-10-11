@@ -1,0 +1,190 @@
+---
+title: "0.Preprocessing"
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Bagaria
+```{r clean data}
+
+bagaria_species_list <- read_excel("data/raw/CESTES/Plant_data/Bagaria2012_AJ.xlsx", 
+    sheet = "splist")  %>%
+    rename(Sp = TaxCode) %>%
+  mutate(Taxon = recode(Taxon, "Anthyllis vulneraria fontqueri" = "Anthyllis vulneraria var. fontqueri",
+                        "Avenula pratensis iberica" = "Helictochloa pratensis subsp. iberica",
+                        "Carduncellus monspelliensium" = "Carduncellus monspeliensium",
+                        "Carduus nigrescens nigrescens" = "Carduus nigrescens subsp. nigrescens",
+                        "Centaurea linifolia linifolia" = "Centaurea linifolia subsp. linifolia",
+                        "Conopodium majus ramosum"  = "Conopodium majus subsp. ramosum",
+                        "Dorycnium pentaphyllum pentaphyllum" = "Dorycnium pentaphyllum subsp. pentaphyllum",
+                        "Euphorbia flavicoma mariolensis" = "Euphorbia flavicoma subsp. mariolensis",
+                        "Euphorbia nicaeensis nicaeensis" = "Euphorbia nicaeensis subsp. nicaeensis",
+                        "Fumana ericoides montana" = "Fumana ericoides subsp. montana",
+                        "Helianthemum appeninum" = "Helianthemum apenninum",
+                        "Helianthemum oelandicum italicum" = "Helianthemum oelandicum subsp. italicum",
+                        "Linum tenuifolium suffruticosum" = "Linum tenuifolium var. suffruticosum",
+                        "Salvia officinalis lavandulifolia" = "Salvia officinalis subsp. lavandulifolia",
+                        "Scorzonera hispanica crispatula" = "Scorzonera hispanica subsp. crispatula",
+                        "Tulipa sylvestris australis" = "Tulipa sylvestris subsp. australis"))
+
+
+bagaria_veg <- read_excel("data/raw/CESTES/Plant_data/Bagaria2012_AJ.xlsx") %>%
+  column_to_rownames(var = "Sites") 
+
+colnames(bagaria_veg) <- bagaria_species_list$Taxon
+
+bagaria_veg <- bagaria_veg %>%
+  select(order(colnames(.)))
+
+
+bagaria_trait <- read_excel("data/raw/CESTES/Plant_data/Bagaria2012_AJ.xlsx", 
+    sheet = "traits")  %>%
+  full_join(bagaria_species_list) %>%
+  select(c(SeedSize, FlowerSize, Resprout, VegSpread, LA, Spin, Taxon)) %>%
+  mutate(Resprout = recode(Resprout, Yes = 2,
+                             No  =  1),
+         Spin = recode(Spin, Yes = 2,
+                             No  =  1),
+         VegSpread = recode(VegSpread, Yes = 2,
+                             No  =  1),
+         LA = LA + 0.0001) %>%
+  rename(Name = Taxon) %>%
+  select(order(colnames(.))) %>%
+  relocate(Name) %>%
+  arrange(Name) %>%
+  mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+
+bagaria_trait_fd <- read_excel("data/raw/CESTES/Plant_data/Bagaria2012_AJ.xlsx", 
+    sheet = "traits")  %>%
+  full_join(bagaria_species_list) %>%
+  select(c(SeedSize, FlowerSize, Resprout, VegSpread, LA, Spin, Taxon)) %>%
+  select(order(colnames(.))) %>%
+  arrange(Taxon) %>%
+  column_to_rownames(var = "Taxon") %>%
+  mutate(Resprout = recode(Resprout, Yes = 1,
+                             No  =  0),
+         Spin = recode(Spin, Yes = 1,
+                             No  =  0),
+         VegSpread = recode(VegSpread, Yes = 1,
+                             No  =  0)) 
+
+traitlist <- sort(c("SeedSize", "FlowerSize", "Resprout", "VegSpread", "LA", "Spin"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+
+######## Regional trait coverage TRY
+regional_trait_coverage <- bagaria_veg %>%
+  summarise(across(where(is.numeric), ~ sum(.))) %>%
+  t() %>%
+  as.data.frame() %>%
+  mutate(Total_cover = rowSums(.)) %>%
+  select(Total_cover) %>%
+  dplyr::filter(Total_cover != 0) %>%
+  mutate(Relative_meta_cover = Total_cover / sum(Total_cover)) %>%
+  rownames_to_column(var = "Name") %>%
+  filter(Name %notin% combined_present$dataset_name) %>%
+  select(Name, Relative_meta_cover) %>%
+  summarise(across(where(is.numeric), ~sum(.))) %>%
+  pull(Relative_meta_cover)
+
+
+``` 
+
+
+## 5. Perform calculations
+```{r calculations }
+
+bagaria_processed_specieslvl <- cats_preparation(input_veg = bagaria_veg, input_trait = bagaria_trait,
+                                      cutoff_value =  0.8, trait_information = trait_information,
+                                      trait_detail = "Study")
+
+mean_dist <- calculate_mean_dist(bagaria_veg, bagaria_processed_specieslvl)
+
+FD <- dbFD(bagaria_trait_fd, bagaria_veg, stand.x = TRUE)
+
+FD_df <- data.frame(FEve = FD$FEve,
+        FDiv  = FD$FDiv,
+        FRic = FD$FRic,
+        RaoQ = FD$RaoQ,
+        qual.FRic = FD$qual.FRic) %>%
+  rownames_to_column(var = "Plot_code")
+
+
+diversity_info <- bagaria_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() %>% 
+  mutate(shannon = diversity(.[,1:ncol(.)], index = "shannon", MARGIN = 1, base = exp(1)),
+         simpson = diversity(.[,1:ncol(.)], index = "simpson", MARGIN = 1, base =exp(1)),
+         species_richness = specnumber(.[,1:ncol(.)], MARGIN = 1),
+         empty_states = ncol(bagaria_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]]) - species_richness,
+         meta_size = ncol(bagaria_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]])) %>%
+  select(shannon, simpson, species_richness, empty_states, meta_size) %>% # base = exp(1) gives the shannon index a log e base
+  rownames_to_column(var = "Plot_code") %>%
+  full_join(mean_dist) %>%
+  full_join(FD_df)
+
+```
+
+
+
+## 6. Cats model
+```{r cats calculations}
+
+bagaria_cats <- cats_calculations(bagaria_processed_specieslvl, trait_information,
+                                  trait_detail = "Study") %>%
+  mutate(study = "Bagaria")
+
+bagaria_figure <- cats_visualisation(bagaria_cats) %>%
+  mutate(study = "Bagaria")
+
+save(bagaria_processed_specieslvl, bagaria_figure, bagaria_species_list, bagaria_cats,
+  file = "data/processed/bagaria_calculations.RData")
+
+
+ggplot(bagaria_figure, aes(x = species_richness, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Bagaria et al. 2012",
+       x = "Species richness") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.1, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  ))
+
+ggplot(bagaria_figure, aes(x = mean_dist, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between plot dissimilarity and the CATS decomposition - Bagaria et al. 2012",
+       x = "Average Bray-Curtis index value") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.1, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+```

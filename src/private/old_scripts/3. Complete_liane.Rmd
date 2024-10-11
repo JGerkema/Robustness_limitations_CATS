@@ -1,0 +1,184 @@
+---
+title: "3. Complete analysis Liane et al."
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Liane et al.
+```{r clean data}
+
+liane_veg <- read_delim("data/raw/Laine et al. 2021/datasets/Laine-etal_Species_composition_ownadjust.tab", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE) 
+
+liane_trait <- read_delim("data/raw/Laine et al. 2021/datasets/Laine-etal_Vascular_Traits_ownadjust.tab", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE)
+
+
+species_list_import <- read_excel("data/raw/Laine et al. 2021/species_list_complete.xlsx") 
+
+
+species_list <- liane_veg %>%
+  select(-c(Event, pH, `Peat thick [m]`, `Moisture index`)) %>%
+  pivot_longer(cols = 1:ncol(.), values_to = "cover", names_to = "Name") %>%
+  select(-c(cover)) %>%
+  distinct() 
+
+check <- rowSums(liane_processed_specieslvl[["relative_abundances"]][["matrix_prop_match"]])
+
+liane_veg_long <- liane_veg %>%
+  select(-c(pH, `Peat thick [m]`, `Moisture index`)) %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "cover", names_to = "Name")
+
+species_list_combined <- bind_cols(species_list_import, species_list)
+
+
+vascular_plant_list <- lookup_table(species_list_import$Species_full, by_species=TRUE, 
+                          family.tax = "plantlist", missing_action = "drop") %>%
+  rownames_to_column(var = "Species_long") %>%
+  arrange(Species_long) %>%
+  filter(group != "Bryophytes") %>%
+  pull(Species_long)
+
+liane_veg_temp <- liane_veg_long %>%
+  full_join(species_list_combined) %>%
+  select(-c(Name)) %>%
+  rename(Name = Species_full, Plot_code = Event) %>%
+  filter(Name %in% c(vascular_plant_list))
+
+liane_veg <- liane_veg_temp %>%
+  pivot_wider(names_from = Name, values_from = cover) %>%
+  column_to_rownames(var = "Plot_code") %>%
+  select(order(colnames(.)))
+
+liane_species_list <- colnames(liane_veg)
+
+liane_trait <- liane_trait %>%
+  rename(CN = `C/N`, LS = `Leave size [cm**2]`, Plot_code = Event,
+         Height = `Plant h [cm]`, Name = Species) %>%
+  select(c(Plot_code, Name, CN, LS, Height)) %>%
+  mutate(Name = recode(Name, `Scheuzeria palustris` = "Schezeria palustris")) %>%
+  group_by(Plot_code, Name) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = TRUE))) %>%
+  ungroup() %>%
+  full_join(liane_veg_temp) %>%
+  group_by(Name) %>%
+  mutate(across(where(is.numeric), ~replace_na(., mean(., na.rm = TRUE)))) %>%
+  ungroup() %>%
+  drop_na() %>%
+  select(-c(cover)) %>%
+  ungroup() %>%
+  select(order(colnames(.))) %>%
+  relocate(Plot_code, Name) %>%
+  arrange(Name) 
+
+liane_trait_fd <- liane_trait
+
+species_list_fd <- liane_trait %>% pull(Name)
+
+liane_veg_fd <- liane_veg %>%
+  select(all_of(species_list_fd))
+
+liane_species_list <- colnames(liane_veg_fd)
+
+liane_trait <- liane_trait %>%
+  mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+ 
+traitlist <- sort(c("Height", "LS", "CN"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+``` 
+
+
+## 5. Perform calculations
+```{r calculations }
+
+liane_processed_specieslvl <- cats_preparation(input_veg = liane_veg, input_trait = liane_trait, cutoff_value =  0.8, trait_information = trait_information, 
+                                           trait_detail = "Plot")
+
+mean_dist <- calculate_mean_dist(liane_veg, liane_processed_specieslvl)
+
+FD_df <- calculate_FD_plotlvl(liane_processed_specieslvl, liane_veg_fd, liane_trait_fd)
+
+diversity_info <- liane_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() %>% 
+  mutate(shannon = diversity(.[,1:ncol(.)], index = "shannon", MARGIN = 1, base = exp(1)),
+         simpson = diversity(.[,1:ncol(.)], index = "simpson", MARGIN = 1, base =exp(1)),
+         species_richness = specnumber(.[,1:ncol(.)], MARGIN = 1),
+         empty_states = ncol(liane_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]]) - species_richness,
+         meta_size = ncol(liane_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]])) %>%
+  select(shannon, simpson, species_richness, empty_states, meta_size) %>% # base = exp(1) gives the shannon index a log e base
+  rownames_to_column(var = "Plot_code") %>%
+  full_join(mean_dist) %>%
+  full_join(FD_df)
+
+
+```
+
+
+
+## 6. Cats model
+```{r cats calculations}
+
+liane_cats <- cats_calculations(liane_processed_specieslvl, trait_information,
+                           trait_detail = "Plot") %>%
+  mutate(study = "Liane")
+
+
+liane_figure <- cats_visualisation(liane_cats) %>%
+  mutate(study = "Liane")
+
+save(liane_processed_specieslvl, liane_figure, liane_species_list, liane_cats,
+  file = "data/processed/liane_calculations.RData")
+
+ggplot(liane_figure, aes(x = species_richness, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Liane et al. 2021",
+       x = "Species richness") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+ggplot(liane_figure, aes(x = mean_dist, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between plot dissimilarity and the CATS decomposition - Liane et al. 2021",  
+       x = "Average Bray-Curtis index value") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+
+
+```

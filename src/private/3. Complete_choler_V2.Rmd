@@ -1,0 +1,92 @@
+---
+title: "2. Complete analysis Choler et al."
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Choler et al. 2005
+```{r clean data}
+
+choler_species_list <- read_excel("data/raw/CESTES/Plant_data/Choler2005_AJ.xlsx", 
+    sheet = "splist") %>%
+    rename(Sp = TaxCode) %>%
+  separate(Taxon, into = c("genus", "sp", "extra"), extra = "merge", remove = F, sep = " ") %>%
+  mutate(Taxon = paste0(genus, " ", sp))
+
+choler_veg <- read_excel("data/raw/CESTES/Plant_data/Choler2005_AJ.xlsx") %>%
+  column_to_rownames(var = "Sites") 
+
+choler_envir <- read_excel("data/raw/CESTES/Plant_data/Choler2005_AJ.xlsx", 
+    sheet = "envir")
+
+colnames(choler_veg) <- choler_species_list$Taxon
+
+choler_veg <- choler_veg %>%
+  select(order(colnames(.))) %>%
+  mutate(across(where(is.numeric),  ~recode(., "1" = 2.5, "2" = 7.5,
+                                            "3" = 17.5, "4" = 37.5,
+                                            "5" = 62.5, "6" = 87.5)))
+
+choler_trait <- read_excel("data/raw/CESTES/Plant_data/Choler2005_AJ.xlsx", 
+  sheet = "traits")  %>%
+  full_join(choler_species_list) %>%
+  rename(LA = Area, SM = Seed,
+         Leaf_angle = Angle, 
+         Lateral_spread = Spread,
+         Leaf_N = N_mass,
+         Leaf_thickness = Thick) %>%
+  select(-c(Sp, TaxAbbrev, genus, extra, sp)) %>%
+  rename(Name = Taxon) %>%
+  mutate(Leaf_angle = Leaf_angle + 0.0001) %>% # To avoid values of 0
+  select(order(colnames(.))) %>%
+  relocate(Name) %>%
+  arrange(Name)
+
+choler_trait_fd <- choler_trait %>%
+  column_to_rownames(var = "Name") 
+
+#choler_trait <- choler_trait %>%
+  #   mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+
+
+traitlist <- sort(c("Leaf_angle", "Height", "LA", "Leaf_N", "SLA", "SM", 
+                    "Lateral_spread", "Leaf_thickness"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+choler_output <- lst(input_veg = choler_veg, 
+                     input_veg_fd = choler_veg,
+                     input_trait = choler_trait,
+                     input_trait_fd = choler_trait_fd,
+                     cutoff_value = 0.8,
+                     trait_detail = "Study",
+                     trait_information = trait_information,
+                     study_name = "Choler")
+
+save(choler_output,
+ file = "data/processed/choler_prep.RData")
+
+
+``` 
+
+

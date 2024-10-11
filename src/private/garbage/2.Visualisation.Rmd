@@ -1,0 +1,190 @@
+---
+title: "2. Visualisation"
+author: "Jelyn Gerkema"
+date: "2023-05-31"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings.R")
+
+load("data/processed/Bio_exp_cats_output.RData")
+
+cats_output <- output_list$processed_specieslvl
+calculations_cwm_cwv <- processed_specieslvl$calculations_cwm_cwv
+```
+
+
+## 1. Preperation
+```{r exporing output}
+
+cats_output_processed <- cats_output %>%
+  mutate(
+    just.neutral1 = model.prior.plus.traits - model.uniform.prior.plus.traits,
+    just.neutral2 = model.mean.null.given.prior - model.mean.null.given.uniform,
+    just.traits1 = model.uniform.prior.plus.traits - model.mean.null.given.uniform,
+    just.traits2 = model.prior.plus.traits - model.mean.null.given.prior,
+    information.unique.to.local.trait.constraints = just.traits2 / (1 - model.bias),
+    information.unique.to.neutral.prior = just.neutral1 / (1 - model.bias),
+    delta.R.trait = just.traits1,
+    delta.R.neutral = just.neutral2,
+    T1 = just.traits1 - just.traits2,
+    T2 = just.neutral2 - just.neutral1,
+    joint.information = T2 / (1 - model.bias),
+    biologically.unexplained.information = (1 - model.prior.plus.traits) / (1 - model.bias),
+    check = information.unique.to.local.trait.constraints + information.unique.to.neutral.prior + joint.information +
+    model.bias + biologically.unexplained.information
+  ) %>%
+  select(c(
+    information.unique.to.local.trait.constraints, information.unique.to.neutral.prior,
+    joint.information, biologically.unexplained.information, Plot_code
+  )) %>%
+  pivot_longer(cols = 1:4, names_to = "Deviance", values_to = "KLR2") %>%
+  mutate(Deviance = recode(Deviance,
+    biologically.unexplained.information = "Unexplained effect",
+    information.unique.to.neutral.prior = "Pure metacommunity effect",
+    joint.information = "Joint trait & metacommunity effect",
+    information.unique.to.local.trait.constraints = "Pure trait effect"
+  ))
+
+cats_output_combined <- list(
+  taxonomic_richness, calculations_cwm_cwv,
+  cats_output_processed) %>%
+  reduce(inner_join) %>%
+  separate(Plot_code, into = c("Year", "PlotID"), sep = " ", convert = TRUE) %>%
+  inner_join(plot_metadata) %>%
+  mutate(`Land use type` = recode(`Land use type`, `Mown Pasture` = "Mown pasture")) %>%
+  mutate(Species_richness_bins = cut(Species_richness,
+                      breaks = c(5, 15, 25, 35, 45, 56),
+                      include.lowest = T,
+                      right = F))
+
+cats_output_combined$Species_richness_bins <- ordered(cats_output_combined$Species_richness_bins, 
+                                     levels = c("[5,15)",  "[15,25)", "[25,35)", "[35,45)", "[45,56]"))
+
+cats_output_combined$Deviance <- factor(cats_output_combined$Deviance, levels = c(
+  "Pure trait effect", "Pure metacommunity effect",
+  "Joint trait & metacommunity effect", "Unexplained effect"
+))
+
+
+
+cats_output_lambda <- cats_output %>%
+  select(-c(
+    model.bias, model.prior.plus.traits,
+    model.mean.null.given.prior, model.uniform.prior.plus.traits,
+    model.mean.null.given.uniform
+  )) %>%
+  pivot_longer(cols = 1:20, values_to = "Lambda", names_to = "Traits") %>%
+  separate(Traits, into = c("Trait", "Model"), sep = " ") %>%
+  filter(Trait != "prior" & Trait != "intercept")  
+
+
+cats_output_lambda_combined <- list(
+ taxonomic_richness, calculations_cwm_cwv,
+  cats_output_lambda) %>%
+  reduce(inner_join) %>%
+  separate(Plot_code, into = c("Year", "PlotID"), sep = " ", convert = TRUE) %>%
+  inner_join(plot_metadata) %>%
+  mutate(`Land use type` = recode(`Land use type`, `Mown Pasture` = "Mown pasture")) %>%
+  filter(Year == 2020) %>%
+    mutate(Species_richness_bins = cut(Species_richness,
+                      breaks = c(5, 15, 25, 35, 45, 56),
+                      include.lowest = T,
+                      right = F))
+
+cats_output_combined$Species_richness_bins <- ordered(cats_output_combined$Species_richness_bins, 
+                                     levels = c("[5,15)",  "[15,25)", "[25,35)", "[35,45)", "[45,56]"))
+
+meta_data_output <- cats_output %>%
+  separate(Plot_code, into = c("Year", "PlotID"), sep = " ", convert = TRUE) %>%
+  filter(Year == 2020) %>%
+  inner_join(plot_metadata) %>%
+  group_by(Year) %>%
+  count(Soil_Type_WRB, name = "Soil_type")
+
+
+```
+
+## 2. Visualisation
+```{r visualisation}
+
+ggplot(cats_output_combined, aes(x = Deviance, y = KLR2, colour = Exploratory)) +
+  geom_boxplot() +
+  theme_classic() +
+  geom_hline(yintercept = 0, linetype = 2) +
+  scale_y_continuous(breaks = c(
+    -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5,
+    0.6, 0.7, 0.8, 0.9, 1
+  )) +
+  coord_cartesian(ylim = c(-0.6, 1)) +
+  scale_colour_manual(values = c(
+    "Hainich-Dün" = "plum3",
+    "Schorfheide-Chorin" = "dodgerblue",
+    "Schwäbische Alb" = "turquoise2"
+  )) +
+  labs(x = NULL, title = "CATS model, data at species level")
+
+ggplot(cats_output_combined, aes(x = Deviance, y = KLR2, colour = Species_richness_bins)) + 
+   geom_boxplot() +
+  theme_classic() +
+  geom_hline(yintercept = 0, linetype = 2) +
+  scale_y_continuous(breaks = c(
+    -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5,
+    0.6, 0.7, 0.8, 0.9, 1
+  )) +
+  coord_cartesian(ylim = c(-0.5, 1)) +
+  labs(x = NULL, title = "CATS model, different levels of biodiversity, data at species level") +
+  scale_colour_manual(breaks = c("[5,15)",  "[15,25)", "[25,35)", "[35,45)", "[45,56]"),
+                          values = c("[5,15)" = "#440154FF", "[15,25)" = "#3B528BFF", 
+                                     "[25,35)" = "#21908CFF", "[35,45)" = "#5DC863FF", 
+                                     "[45,56]" = "#FDE725FF")) +
+  labs(colour = "Species richness level") 
+
+ggplot(cats_output_lambda_combined, aes(Model, Lambda, colour = Species_richness_bins)) +
+  geom_boxplot() +
+  facet_wrap(~Trait, scales = "free") +
+  theme_classic() +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(title = "Lambda's per species richness level, data at species level") + 
+  scale_colour_manual(breaks = c("[5,15)",  "[15,25)", "[25,35)", "[35,45)", "[45,56]"),
+                          values = c("[5,15)" = "#440154FF", "[15,25)" = "#3B528BFF", 
+                                     "[25,35)" = "#21908CFF", "[35,45)" = "#5DC863FF", 
+                                     "[45,56]" = "#FDE725FF")) +
+  labs(colour = "Species richness level") 
+
+ggplot(cats_output_lambda_combined, aes(Model, Lambda)) +
+  geom_boxplot() +
+  facet_wrap(~Trait, scales = "free") +
+  theme_classic() +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(title = "Lambda's per species richness level, data at species level") + 
+ scale_colour_manual(values = c(
+    "Hainich-Dün" = "plum3",
+    "Schorfheide-Chorin" = "dodgerblue",
+    "Schwäbische Alb" = "turquoise2"
+  ))
+
+Temp <- Output_all_KLR2 %>%
+  separate(Plot_code, into = c("Year", "PlotID"), sep = " ", convert = TRUE) %>%
+  inner_join(Plotdata_coor) %>%
+  inner_join(Plotdata_landtype) %>%
+  count(`Land use type`)
+
+ggplot(cats_output_lambda_combined, aes(x = `Land use type`, y = Lambda, colour = `Exploratory`)) +
+  geom_boxplot() +
+  facet_wrap(~Trait, scales = "free") +
+  theme_classic() +
+  scale_colour_manual(values = c(
+    "Hainich-Dün" = "plum3",
+    "Schorfheide-Chorin" = "dodgerblue",
+    "Schwäbische Alb" = "turquoise2"
+  ))
+```

@@ -1,0 +1,121 @@
+---
+title: "3. Complete analysis Eallonardo et al."
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Kembel and Cahill jr., 2011
+```{r clean data}
+
+plot_metadata <- read_csv("data/raw/Kembel et al. 2011/plot.metadata.csv") 
+	
+
+kembel <- read_csv("data/raw/Kembel et al. 2011/community.traits.csv") %>%
+  full_join(plot_metadata) %>%
+  filter(site ==  "Onefour") %>%
+  rename(Plot_code = plot, Name = species, LA = LeafArea) %>%
+  mutate(Name = str_replace_all(Name, "_", " ")) %>%
+  mutate(Name = recode(Name, "Petalostemon purpureum" = "Petalostemon purpureus")) 
+
+
+kembel_veg <- kembel %>%
+  select(c(Plot_code, Name, abund)) %>%
+  pivot_wider(values_from = abund, names_from = Name) %>%
+  replace(is.na(.), 0) %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "cover", names_to = "Name")
+
+kembel_species_list <- colnames(kembel_veg)
+
+kembel_trait_temp <- kembel %>%
+  select(-c(abund, habitat, site, slope, aspect, slope.position, rel.moisture)) %>%
+  full_join(kembel_veg) %>%
+  group_by(Name) %>%
+  mutate(across(where(is.numeric), ~replace_na(., mean(., na.rm = TRUE)))) %>%
+  select(-c(cover)) %>%
+  ungroup() 
+
+
+species_with_na <- kembel_trait_temp %>%
+  filter(rowSums(is.na(.)) > 0) %>%
+  select(-Plot_code) %>%
+  distinct()
+
+traits_sup  <- read_csv("data/raw/Kembel et al. 2011/community.traits.csv") %>%
+  full_join(plot_metadata) %>%
+  rename(Plot_code = plot, Name = species, LA = LeafArea) %>%
+  mutate(Name = str_replace_all(Name, "_", " ")) %>%
+  mutate(Name = recode(Name, "Petalostemon purpureum" = "Petalostemon purpureus")) %>%
+  select(-c(abund, habitat, slope, aspect, slope.position, rel.moisture)) %>%
+  full_join(kembel_veg) %>%
+  filter(Name %in% species_with_na$Name) %>%
+  group_by(Name, site) %>%
+  mutate(across(where(is.numeric), ~replace_na(., mean(., na.rm = TRUE)))) %>%
+  ungroup() %>%
+  group_by(Name) %>%
+  mutate(across(where(is.numeric), ~replace_na(., mean(., na.rm = TRUE)))) %>%
+  filter(Plot_code %in% kembel_veg$Plot_code) %>%
+  select(-site, -cover) 
+
+kembel_trait <- kembel_trait_temp %>%
+  filter(Name %notin% traits_sup$Name) %>%
+  bind_rows(traits_sup) %>%
+  rename(Leaf_thickness = LeafThickness, Leaf_density = LeafTissueDens,
+         Root_diam = RootDiam, Root_density = RootTissueDens) %>%
+  select(order(colnames(.))) %>%
+  relocate(Plot_code, Name) %>% 
+  arrange(Name) 
+
+kembel_trait_fd <- kembel_trait
+
+#kembel_trait <- kembel_trait %>%
+ # mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+  
+
+kembel_veg <- kembel_veg %>%
+  pivot_wider(values_from = cover, names_from = Name) %>%
+  filter(Plot_code != "p4") %>%
+  column_to_rownames(var = "Plot_code") %>%
+  select(order(colnames(.))) 
+  
+
+
+traitlist <- sort(c( "LA", "Leaf_thickness", "Leaf_density", "Root_diam", "Root_density",
+                     "SLA", "SRL"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+kembel_onefour_output <- lst(input_veg = kembel_veg, 
+                     input_veg_fd = kembel_veg,
+                     input_trait = kembel_trait,
+                     input_trait_fd = kembel_trait_fd,
+                     cutoff_value = 0.8,
+                     trait_detail = "Plot",
+                     trait_information = trait_information,
+                     study_name = "Kembel_onefour")
+
+save(kembel_onefour_output,
+ file = "data/processed/kembel_onefour_prep.RData")
+
+``` 
+
+

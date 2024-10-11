@@ -1,0 +1,186 @@
+---
+title: "3. Complete analysis Liane et al."
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Liane et al.
+```{r clean data}
+
+liane_veg <- read_delim("data/raw/Laine et al. 2021/datasets/Laine-etal_Species_composition_ownadjust.tab", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE)
+
+liane_trait <- read_delim("data/raw/Laine et al. 2021/datasets/Laine-etal_Vascular_Traits_ownadjust.tab", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE) 
+
+coordinates <- liane_veg %>%
+  select(Event) %>%
+  separate(Event, into = c("part1", "part2", "code"), sep = "_", extra = "merge",
+           remove = F) %>%
+  distinct() %>%
+  mutate(country = case_when(
+    substr(code, 1, 1) == "u" ~ "Sweden",
+    substr(code, 1, 1) == "H" ~ "Finland_1",
+    substr(code, 1, 1) == "S" ~ "Finland_2",
+    substr(code, 1, 1) == "B" ~ "Russia")) %>%
+  select(Event, country) %>%
+  rename(Plot_code = Event)
+
+
+extract_country <- coordinates %>%
+  filter(country == "Finland_2")
+ 
+#liane_veg <- liane_veg %>%
+#  filter(Event %in% extract_country$Plot_code)  
+  
+
+#liane_trait <- liane_trait %>%
+#  filter(Event %in% extract_country$Event) 
+
+species_list_import <- read_excel("data/raw/Laine et al. 2021/species_list_complete.xlsx") 
+
+
+species_list <- liane_veg %>%
+  select(-c(Event, pH, `Peat thick [m]`, `Moisture index`)) %>%
+  pivot_longer(cols = 1:ncol(.), values_to = "cover", names_to = "Name") %>%
+  select(-c(cover)) %>%
+  distinct() 
+
+liane_veg_long <- liane_veg %>%
+  select(-c(pH, `Peat thick [m]`, `Moisture index`)) %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "cover", names_to = "Name")
+
+species_list_combined <- bind_cols(species_list_import, species_list)
+
+
+vascular_plant_list <- lookup_table(species_list_import$Species_full, by_species=TRUE, 
+                          family.tax = "plantlist", missing_action = "drop") %>%
+  rownames_to_column(var = "Species_long") %>%
+  arrange(Species_long) %>%
+  filter(group != "Bryophytes") %>%
+  pull(Species_long)
+
+liane_veg_temp <- liane_veg_long %>%
+  inner_join(species_list_combined) %>%
+  select(-c(Name)) %>%
+  rename(Name = Species_full, Plot_code = Event) %>%
+  filter(Name %in% c(vascular_plant_list)) %>%
+  mutate(Name = recode(Name, "Vaccinium micrococcus" =  "Vaccinium microcarpum")) %>%
+  full_join(coordinates)
+
+liane_veg <- liane_veg_temp %>%
+  filter(Plot_code %in% extract_country$Plot_code)  %>%
+  select(-country) %>%
+  pivot_wider(names_from = Name, values_from = cover) %>%
+  column_to_rownames(var = "Plot_code") %>%
+  select(order(colnames(.))) %>%
+  select_if(~ !is.numeric(.) || sum(.) != 0)
+
+liane_species_list <- colnames(liane_veg)
+
+liane_trait_temp <- liane_trait %>%
+  rename(Leaf_N = `N [%]`, Leaf_C = `C [%]`, LA = `Leave size [cm**2]`, Plot_code = Event,
+         Height = `Plant h [cm]`, Name = Species) %>%
+  mutate(Name =  recode(Name, "Scheuzeria palustris" = "Scheuchzeria palustris",
+                         "Carex chordorhiza" = "Carex chordorrhiza")) %>%
+  select(c(Plot_code, Name, Leaf_N, Leaf_C, LA, Height)) %>%
+  group_by(Plot_code, Name) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = TRUE))) %>%
+  ungroup() %>%
+  full_join(coordinates) %>%
+  full_join(liane_veg_temp) %>%
+  group_by(Name, country) %>%
+  mutate(across(where(is.numeric), ~replace_na(., mean(., na.rm = TRUE)))) %>%
+  ungroup() %>%
+  filter(country == "Finland_2")
+
+traits_na <- liane_trait_temp %>%
+  filter(is.nan(Height)) 
+
+species_with_na <- liane_trait_temp %>%
+  filter(rowSums(is.na(.)) > 0) %>%
+  select(-Plot_code) %>%
+  distinct()
+
+
+trait_sup <- liane_trait %>%
+  rename(Leaf_N = `N [%]`, Leaf_C = `C [%]`, LA = `Leave size [cm**2]`, Plot_code = Event,
+         Height = `Plant h [cm]`, Name = Species) %>%
+  mutate(Name =  recode(Name, "Scheuzeria palustris" = "Scheuchzeria palustris",
+                         "Carex chordorhiza" = "Carex chordorrhiza")) %>%
+  select(c(Plot_code, Name, Leaf_N, Leaf_C, LA, Height)) %>%
+  group_by(Plot_code, Name) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = TRUE))) %>%
+  ungroup() %>%
+  full_join(liane_veg_temp) %>%
+  filter(Name %in% species_with_na$Name) %>%
+  group_by(Name, country) %>%
+  mutate(across(where(is.numeric), ~replace_na(., mean(., na.rm = TRUE)))) %>%
+  ungroup() %>%
+  group_by(Name) %>%
+  mutate(across(where(is.numeric), ~replace_na(., mean(., na.rm = TRUE)))) %>%
+  filter(Plot_code %in% rownames(liane_veg)) 
+
+
+liane_trait <- liane_trait_temp %>%
+  filter(Name %notin% trait_sup$Name) %>%
+  bind_rows(trait_sup) %>%
+  drop_na() %>%
+  filter(Name %in% colnames(liane_veg)) %>%
+  arrange(Name) %>%
+  select(-cover, -country)
+
+
+liane_trait_fd <- liane_trait
+
+species_list_fd <- liane_trait %>% pull(Name)
+
+liane_veg_fd <- liane_veg %>%
+  select(all_of(species_list_fd))
+
+liane_species_list <- colnames(liane_veg_fd)
+
+#liane_trait <- liane_trait %>%
+#  mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+ 
+traitlist <- sort(c("Height", "LA", "Leaf_N", "Leaf_C"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+liane_finland2_output <- lst(input_veg = liane_veg, 
+                     input_veg_fd = liane_veg_fd,
+                     input_trait = liane_trait,
+                     input_trait_fd = liane_trait_fd,
+                     cutoff_value = 0.8,
+                     trait_detail = "Plot",
+                     trait_information = trait_information,
+                     study_name = "Liane_finland_2")
+
+save(liane_finland2_output,
+ file = "data/processed/liane_finland_2_prep.RData")
+
+``` 
+
+

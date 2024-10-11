@@ -1,0 +1,95 @@
+---
+title: "3. Complete analysis Eallonardo et al."
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Marteinsdottir et al. 2013
+```{r clean data}
+
+marteinsdottir_veg <- read_excel("data/raw/CESTES/Plant_data/Marteinsdottir2014_AJ.xlsx", 
+    sheet = "commfull") %>%
+    column_to_rownames(var = "Sites" )
+
+
+
+marteinsdottir_info <- read_excel("data/raw/CESTES/Plant_data/Marteinsdottir2014_AJ.xlsx", 
+    sheet = "envirfull") %>%
+  mutate(across(Sites, as.character))
+
+marteinsdottir_info2 <- read_excel("data/raw/CESTES/Plant_data/Marteinsdottir2014_AJ.xlsx", 
+    sheet = "sitelist") %>%
+  rename(Site_nr = Sites,
+         Sites = SiteID) %>%
+    mutate(across(Sites, as.character))
+
+marteinsdottir_info <- marteinsdottir_info %>%
+  full_join(marteinsdottir_info2) %>%
+  rename(Plot_code = Sites) 
+
+marteinsdottir_species_list <- read_excel("data/raw/CESTES/Plant_data/Marteinsdottir2014_AJ.xlsx", 
+    sheet = "splist") %>%
+  rename(Sp = TaxCode, Name = Taxon) %>%
+  mutate(Name = gsub("\\.", " ", Name)) %>%
+  mutate(Name = recode(Name, "Hieracium gr  Umbellatum" = "Hieracium umbellatum"))
+
+colnames(marteinsdottir_veg) <- marteinsdottir_species_list$Name
+
+marteinsdottir_veg <- marteinsdottir_veg %>%
+  select(order(colnames(.)))
+    
+marteinsdottir_trait <- read_excel("data/raw/CESTES/Plant_data/Marteinsdottir2014_AJ.xlsx", 
+  sheet = "traitsfull") %>%
+  full_join(marteinsdottir_species_list) %>% 
+  select(-c(SEED, COUNT, Sp)) %>%
+  select(order(colnames(.))) %>%
+  relocate(Name) %>%
+  arrange(Name) 
+
+marteinsdottir_trait_fd <- marteinsdottir_trait %>%
+  column_to_rownames(var = "Name")
+
+#marteinsdottir_trait <- marteinsdottir_trait %>%
+#  mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+
+
+traitlist <- sort(c( "LDMC", "SLA"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+marteinsdottir_output <- lst(input_veg = marteinsdottir_veg, 
+                     input_veg_fd = marteinsdottir_veg,
+                     input_trait = marteinsdottir_trait,
+                     input_trait_fd = marteinsdottir_trait_fd,
+                     cutoff_value = 0.8,
+                     trait_detail = "Study",
+                     trait_information = trait_information,
+                     study_name = "Marteinsdottir")
+
+save(marteinsdottir_output,
+ file = "data/processed/marteinsdottir_prep.RData")
+
+
+``` 
+
+

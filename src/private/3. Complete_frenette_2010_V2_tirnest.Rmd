@@ -1,0 +1,132 @@
+---
+title: "3. Complete analysis Eallonardo et al."
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Frenette-Dussault et al. 2012
+```{r clean data}
+
+frenette2010_veg_info <- read_excel("data/raw/CESTES/Plant_data/Frenette2012b_AJ.xlsx", 
+    sheet = "envirfull") %>%
+    select(Sites, SiteReg)
+   # rename(Plot_code = Sites) %>%
+#  mutate(across(Plot_code, as.character))
+
+unique(frenette2010_veg_info$SiteReg)
+
+frenette_veg <- read_excel("data/raw/CESTES/Plant_data/Frenette2012b_AJ.xlsx", 
+    sheet = "commfull") %>%
+    full_join(frenette2010_veg_info) %>%
+    filter(SiteReg == "Tirnest") %>%
+    select(-SiteReg) %>%
+    column_to_rownames(var = "Sites" ) 
+
+frenette2010_species_list <- read_excel("data/raw/CESTES/Plant_data/Frenette2012b_AJ.xlsx", 
+    sheet = "splist") %>%
+  rename(Sp = TaxCode, Name = Taxon) %>%
+  mutate(Name = recode(Name, "Helianthemum lipii" = "Helianthemum lippii",
+                       "Salsola verticilata" = "Salsola verticillata"))
+
+
+colnames(frenette_veg) <- frenette2010_species_list$Name
+
+frenette_veg <- frenette_veg %>%
+    select(where(~ any(. != 0)))  # One species is not present anywhere and is filtered out through this
+    
+species_list_temp <- frenette2010_species_list %>% pull(Name) 
+
+hierarchy <- lookup_table(species_list_temp, by_species=TRUE, 
+                          family.tax = "plantlist", missing_action = "drop") %>%
+  rownames_to_column(var = "Name")
+
+family_mean <- read_excel("data/raw/CESTES/Plant_data/Frenette2012b_AJ.xlsx", 
+  sheet = "traitsfull")  %>%
+  full_join(frenette2010_species_list) %>%
+  full_join(hierarchy) %>%
+  group_by(family) %>%
+  mutate(across(MH, as.numeric)) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  filter(family == "Leguminosae") %>%
+  pull(MH) 
+
+frenette_trait <- read_excel("data/raw/CESTES/Plant_data/Frenette2012b_AJ.xlsx", 
+  sheet = "traitsfull") %>%
+  full_join(frenette2010_species_list) %>% 
+  select(-c(LC13, LN15, SM, GrowthForm, FlowerOnset, Clon, VH, PosInflor, Sp,
+            Succ, PastoralVal, LCNR)) %>%
+  rename(Photo_path = PhotoPath, Stem_emerg = Spin, Height = MH,
+        Leaf_N = LNC, Leaf_C = LCC) %>%
+  mutate(Photo_path = recode(Photo_path, `C4` = 2,
+                            `C3`  =  1),
+         Stem_emerg = recode(Stem_emerg, `Presence` = 2,
+                             `Absence`  =  1)) %>%
+  mutate(across(Height, as.numeric)) %>%
+  replace_na(list(Height = family_mean)) %>%
+  select(order(colnames(.))) %>%
+  relocate(Name) %>%
+  arrange(Name) %>%
+  filter(Name %in% colnames(frenette_veg)) #%>%
+  #mutate(across(where(is.numeric), ~ c(scale(., center = FALSE)))) 
+
+frenette_trait_fd <- read_excel("data/raw/CESTES/Plant_data/Frenette2012b_AJ.xlsx", 
+  sheet = "traitsfull") %>%
+  full_join(frenette2010_species_list) %>% 
+  select(-c(LC13, LN15, SM, GrowthForm, FlowerOnset, Clon, VH, PosInflor, Sp,
+            Succ, PastoralVal, LCNR)) %>%
+  rename(Photo_path = PhotoPath, Stem_emerg = Spin, Height = MH,
+        Leaf_N = LNC, Leaf_C = LCC) %>%
+  mutate(Photo_path = recode(Photo_path, `C4` = 1,
+                            `C3`  =  0),
+         Stem_emerg = recode(Stem_emerg, `Presence` = 1,
+                             `Absence`  =  0)) %>%
+  mutate(across(Height, as.numeric)) %>%
+  replace_na(list(Height = family_mean)) %>%
+  select(order(colnames(.))) %>%
+  relocate(Name) %>%
+  arrange(Name) %>%
+  filter(Name %in% colnames(frenette_veg)) %>%
+  column_to_rownames(var = "Name")
+
+
+traitlist <- sort(c("Photo_path", "Height", "LA", "Leaf_C",  "LDMC",
+                    "Leaf_N", "SLA", "Stem_emerg"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+frenette_tirnest_output <- lst(input_veg = frenette_veg, 
+                     input_veg_fd = frenette_veg,
+                     input_trait = frenette_trait,
+                     input_trait_fd = frenette_trait_fd,
+                     cutoff_value = 0.8,
+                     trait_detail = "Study",
+                     trait_information = trait_information,
+                     study_name = "Frenette_tirnest")
+
+save(frenette_tirnest_output,
+ file = "data/processed/frenette_tirnest_prep.RData")
+
+
+``` 
+
+

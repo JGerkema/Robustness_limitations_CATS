@@ -1,0 +1,176 @@
+---
+title: "3. Complete analysis Kassaw et al."
+author: "Jelyn Gerkema"
+date: "2023-10-16"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 
+```{r clean data}
+
+osuri_veg <- read_csv("data/raw/Osuri et al. 2016/Osuri_Sanakran_2016_JAE_plot_data.csv") %>%
+  mutate(Plot_code = paste0(`plot.id`, `site.name`, type)) %>%
+  select(Plot_code, species, `basal.area_sq.cm`) %>%
+  group_by(Plot_code, species) %>%
+  summarise(across(where(is.numeric), ~sum(., na.rm = T))) %>%
+  ungroup() %>%
+  mutate(species = recode(species, "Chrysophyllum roxburdhii" = "Chrysophyllum roxburghii",
+                   "Goniothalamus cardiapetalus" = "Goniothalamus cardiopetalus",
+                   "Otonephelum stipulaceum" = "Otonephelium stipulaceum",
+                   "Reinwardtiodendron anaimalaiense" = "Reinwardtiodendron anamalaiense")) %>%
+  pivot_wider(values_from = `basal.area_sq.cm`, names_from = species) %>%
+  replace(is.na(.), 0) %>%
+  column_to_rownames(var = "Plot_code") %>%
+  select(order(colnames(.)))
+
+osuri_trait <- read_excel("data/raw/Osuri et al. 2016/trait_data.xlsx") %>%
+  rename(Name = Species, SeedSize = `Seed length (cm)`, SLA = `SLA (cm2.g-1)`,
+         WD = `Wood density (g.cm-3)`, 
+         Height = `Maximum attainable height (m)`) %>%
+  select(-c(`No. of trees sampled`, Family, `Seed dispersal mode`)) %>%
+  mutate(SeedSize = as.numeric(SeedSize),
+         WD = as.numeric(WD)) %>% 
+  #replace_na(list(WD = 1)) %>%
+  drop_na() %>%
+  select(order(colnames(.))) %>%
+  mutate(Name = recode(Name, "Chrysophyllum roxburdhii" = "Chrysophyllum roxburghii",
+                      "Goniothalamus cardiapetalus" = "Goniothalamus cardiopetalus",
+                      "Otonephelum stipulaceum" = "Otonephelium stipulaceum",
+                      "Reinwardtiodendron anaimalaiense" = "Reinwardtiodendron anamalaiense")) %>%
+  relocate(Name) %>%
+  arrange(Name)
+  
+
+osuri_trait_fd <- osuri_trait %>%
+  column_to_rownames(var = "Name") 
+
+species_list_fd <- osuri_trait %>% pull(Name)
+
+osuri_veg_fd <- osuri_veg %>%
+  select(all_of(species_list_fd))
+
+osuri_species_list <- colnames(osuri_veg_fd)
+
+osuri_trait <- osuri_trait %>%
+  mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+
+traitlist <- sort(c("SeedSize", "SLA", "WD", "Height"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+``` 
+
+
+## 5. Perform calculations
+```{r calculations }
+
+osuri_processed_specieslvl <- cats_preparation(input_veg = osuri_veg, 
+                                              input_trait = osuri_trait,
+                                              cutoff_value =  0.8, 
+                                              trait_information = trait_information,
+                                              trait_detail = "Study")
+
+mean_dist <- calculate_mean_dist(osuri_veg, osuri_processed_specieslvl)
+
+FD <- dbFD(osuri_trait_fd, osuri_veg_fd, stand.x = T)
+
+FD_df <- data.frame(FEve = FD$FEve,
+        FDiv  = FD$FDiv,
+        FRic = FD$FRic,
+        RaoQ = FD$RaoQ,
+        qual.FRic = FD$qual.FRic) %>%
+  rownames_to_column(var = "Plot_code")
+
+diversity_info <- osuri_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() %>% 
+  mutate(shannon = diversity(.[,1:ncol(.)], index = "shannon", MARGIN = 1, base = exp(1)),
+         simpson = diversity(.[,1:ncol(.)], index = "simpson", MARGIN = 1, base =exp(1)),
+         species_richness = specnumber(.[,1:ncol(.)], MARGIN = 1),
+         empty_states = ncol(osuri_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]]) - species_richness,
+         meta_size = ncol(osuri_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]])) %>%
+  select(shannon, simpson, species_richness, empty_states, meta_size) %>% # base = exp(1) gives the shannon index a log e base
+  rownames_to_column(var = "Plot_code") %>% 
+  full_join(mean_dist) %>%
+  full_join(FD_df)
+
+
+
+
+```
+
+
+
+## 6. Cats model
+```{r cats calculations}
+
+#Determines amount of cores, substract four to keep to pc free for other processes.
+n_cores <- parallel::detectCores() - 5 
+
+my_cluster <- makeSOCKcluster(n_cores)
+
+registerDoSNOW(cl = my_cluster)
+
+foreach::getDoParRegistered() # check if cluster is set up
+
+
+osuri_cats <- cats_calculations(osuri_processed_specieslvl, trait_information,
+                                trait_detail = "Study") %>%
+  mutate(study = "Osuri")
+
+osuri_figure <- cats_visualisation(osuri_cats) %>%
+  mutate(study = "Osuri")
+
+save(osuri_processed_specieslvl, osuri_figure, osuri_species_list, osuri_cats,
+ file = "data/processed/osuri_calculations.RData")
+
+ggplot(osuri_figure, aes(x = species_richness, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Osuri et al. 2016",
+       x = "Species richness") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+ggplot(osuri_figure, aes(x = mean_dist, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between plot dissimilarity and the CATS decomposition - Osuri et al. 2019",
+       x = "Average Bray-Curtis index value") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+
+
+
+
+
+```

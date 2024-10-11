@@ -1,0 +1,2717 @@
+---
+title: "Combine everything"
+author: "Jelyn Gerkema"
+date: "2023-10-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings.R")
+source("src/functions2.R")
+
+```
+
+## 1. Load data
+```{r load data}
+
+#load("~/0. PhD/0. Chapter_I/data/processed/aiello1992_prep.RData")
+#load("~/0. PhD/0. Chapter_I/data/processed/aiello2011_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/kober_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/buzzard_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/castro_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/chalmandrier_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/choler_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/eallonardo_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/frenette_missour_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/frenette_enjil_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/frenette_lamjalil_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/frenette_maatarka_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/frenette_tirnest_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/jaschke_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/kembel_kinsella_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/kembel_onefour_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/liane_sweden_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/liane_finland_1_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/liane_finland_2_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/liane_russia_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/marteinsdottir_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/raevel_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/riva_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/rolhauser_prep.RData")
+#load("~/0. PhD/0. Chapter_I/data/processed/asefa_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/gonzalez_ma_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/gonzalez_ch_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/gonzalez_ca_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/gonzalez_za_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/gonzalez_pe_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/gonzalez_co_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/gonzalez_en_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/gonzalez_pa_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/standen_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/makelele_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/jager_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/osuri_control_prep.RData")
+load("~/0. PhD/0. Chapter_I/data/processed/osuri_fragment_prep.RData")
+
+#meta_data <- read_excel("docs/data/Overview_datasets.xlsx")
+
+load("~/0. PhD/0. Chapter_I/data.public/try_final291.RData")
+
+
+trait_imp <- read_csv("data/processed/trait_imp_final311.csv") %>%
+  select(-c(`...1`)) %>%
+  rename(Name = wfo_match)
+
+classification <- read_delim("data/raw/classification202312.csv", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE) %>%
+  mutate(scientificName = str_replace_all(scientificName, "  ", " "))
+
+trait_names_df <- data.frame(
+  "TraitName" = c(
+    "Leaf area (in case of compound leaves: leaflet, undefined if petiole is in- or excluded)",
+    "Bark thickness",
+    "Leaf carbon (C) content per leaf dry mass",
+    "Leaf carbon isotope signature (delta 13C)",
+    "Leaf chlorophyll content per leaf dry mass",
+    "Leaf nitrogen (N) content per leaf dry mass",
+    "Leaf phosphorus (P) content per leaf dry mass",
+    "Leaf thickness",
+    "Plant height vegetative",
+    "Seed dry mass",
+    "Plant lifespan (longevity)",
+    "Leaf width",
+    "Leaf area per leaf dry mass (specific leaf area, SLA or 1/LMA): undefined if petiole is in- or excluded",
+    "Leaf density (leaf tissue density, leaf dry mass per leaf volume)",
+    "Leaf carbon/nitrogen (C/N) ratio",
+    "Leaf dry mass per leaf fresh mass (leaf dry matter content, LDMC)",
+    "Litter nitrogen (N) content per litter dry mass",
+    "Litter phosphorus (P) content per litter dry mass",
+    "Photosynthesis rate per leaf area",
+    "Seed length",
+    "Stem specific density (SSD, stem dry mass per stem fresh volume) or wood density",
+    "Leaf respiration rate in the dark per leaf area",
+    "Root diameter",
+    "Root porosity (fraction of root aerenchyma air space)",
+    "Root length per root dry mass (specific root length, SRL)",
+    "Root dry mass per root fresh mass (root dry matter content; RDMC)",
+    "Stem dry mass per stem fresh mass (stem dry matter content, StDMC)"
+  ),
+  "Abbreviation" = c(
+    "LA", "Bark_thickness", "Leaf_C", "D13C", "Leaf_chlor", "Leaf_N", "Leaf_P", "Leaf_thickness",
+    "Height", "SM", "PLS", "Leaf_width", "SLA", "Leaf_density", "Leaf_CN", "LDMC", "Litter_N",
+    "Litter_P", "Photo_rate", "Seed_length", "WD", "Leaf_resp", "Root_diam", "Root_poros", "SRL",
+    "RDMC", "StDMC"
+  )
+)
+
+study_names_df <- data.frame(
+  "study" = c("Buzzard", "Castro", "Chalmandrier", "Choler", "Eallonardo", "Frenette_enjil", "Frenette_lamjalil", "Frenette_maatarka", "Frenette_missour", "Frenette_tirnest", "Gonzalez_ca", "Gonzalez_ch", "Gonzalez_co", "Gonzalez_en", "Gonzalez_ma", "Gonzalez_pa", "Gonzalez_pe", "Gonzalez_za", "Jager", "Jäschke", "Kembel_kinsella", "Kembel_onefour", "kober", "Liane_finland_1", "Liane_finland_2", "Liane_russia", "Liane_sweden", "Makelele", "Marteinsdottir", "Osuri_control", "Osuri_fragment", "Raevel", "Riva", "Rolhauser", "Standen"),
+  "new_study_name" = c("Buzzard", "Castro", "Chalmandrier", "Choler", "Eallonardo", "Frenette (Enjil)", 
+  "Frenette (Lamjalil)", "Frenette (Maatarka)", "Frenette (Missour)", "Frenette (Tirnest)", 
+  "Gonzalez (Ca)", "Gonzalez (Ch)", "Gonzalez (Co)", "Gonzalez (En)", "Gonzalez (Ma)", 
+  "Gonzalez (Pa)", "Gonzalez (Pe)", "Gonzalez (Za)", "Jager", "Jäschke", 
+  "Kembel (Kinsella)", "Kembel (Onefour)", "Kober", "Liane (Finland 1)", "Liane (Finland 2)", 
+  "Liane (Russia)", "Liane (Sweden)", "Makelele", "Marteinsdottir", "Osuri (Control)", 
+  "Osuri (Fragment)", "Raevel", "Riva", "Rolhauser", "Standen")) %>%
+  separate(new_study_name, into = "study_group", sep = " ", extra = "drop", remove = F)
+
+# The trait_imp file contains the imputated trait values as done in the dodo science 
+# environment. The data is on individual level. Here, the an average values for 
+# each species are calculated and the long trait names are abbreviated so that they
+# match the trait names in the collected datasets. 
+# The `Name` column contains the wfo matches to the original try species names
+trait_imp_specieslvl <- trait_imp %>%
+  group_by(Name, acceptedNameUsageID, genus, family, order) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  ungroup() %>%
+  rename(LA = "Leaf area (in case of compound leaves: leaflet, undefined if petiole is in- or excluded)",
+         Bark_thickness = "Bark thickness",
+         Leaf_C = "Leaf carbon (C) content per leaf dry mass",
+         D13C = "Leaf carbon isotope signature (delta 13C)",
+         Leaf_chlor = "Leaf chlorophyll content per leaf dry mass",
+         Leaf_N = "Leaf nitrogen (N) content per leaf dry mass",
+         Leaf_P = "Leaf phosphorus (P) content per leaf dry mass",
+         Leaf_thickness = "Leaf thickness",
+         Height = "Plant height vegetative",
+         SM = "Seed dry mass",
+         PLS = "Plant lifespan (longevity)",
+         Leaf_width = "Leaf width",
+         SLA = "Leaf area per leaf dry mass (specific leaf area, SLA or 1/LMA): undefined if petiole is in- or excluded",
+         Leaf_density = "Leaf density (leaf tissue density, leaf dry mass per leaf volume)",
+         Leaf_CN = "Leaf carbon/nitrogen (C/N) ratio",
+         LDMC = "Leaf dry mass per leaf fresh mass (leaf dry matter content, LDMC)",
+         Litter_N = "Litter nitrogen (N) content per litter dry mass",
+         Litter_P = "Litter phosphorus (P) content per litter dry mass",
+         Photo_rate = "Photosynthesis rate per leaf area",
+         Seed_length = "Seed length",
+         WD = "Stem specific density (SSD, stem dry mass per stem fresh volume) or wood density",
+         Leaf_resp  = "Leaf respiration rate in the dark per leaf area",
+         Root_diam = "Root diameter",
+         Root_poros = "Root porosity (fraction of root aerenchyma air space)",
+         SRL = "Root length per root dry mass (specific root length, SRL)",
+         RDMC  = "Root dry mass per root fresh mass (root dry matter content; RDMC)",
+         StDMC =  "Stem dry mass per stem fresh mass (stem dry matter content, StDMC)")
+
+
+trait_imp_genuslvl <- trait_imp_specieslvl %>%
+  select(-c(Name, acceptedNameUsageID, family, order, ObservationID)) %>%
+  group_by(genus) %>%
+  summarise(across(where(is.numeric), mean)) %>%
+  ungroup() %>%
+  rename(Name = genus)
+
+# This file is the same contains the average trait values for each species calculated
+# from only the original data. This file does not contain imputated values. 
+traits_not_imp_specieslvl <- try_traits_tax_final %>%
+  select(c(wfo_match, genus, family, order, TraitName, StdValue, acceptedNameUsageID)) %>%
+  rename(Name = wfo_match) %>%
+  group_by(Name, TraitName) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  ungroup() %>%
+  mutate(TraitName = case_when(
+  TraitName %in% trait_names_df$TraitName ~ trait_names_df$Abbreviation[match(TraitName,
+  trait_names_df$TraitName)],
+  TRUE ~ TraitName))
+  
+  
+#save(trait_imp_specieslvl, trait_imp_genuslvl,
+# file = "data/processed/trait_imp_species_genus.RData")
+
+load("~/0. PhD/0. Chapter_I/data/processed/trait_imp_species_genus.RData")
+
+```
+
+```{r list with all data}
+data_input_list <-  lst(kembel_kinsella_output, kembel_onefour_output,
+                        frenette_missour_output,
+                        frenette_enjil_output, frenette_lamjalil_output,
+                        frenette_maatarka_output, frenette_tirnest_output,
+                        gonzalez_ma_output, gonzalez_ch_output, gonzalez_ca_output,
+                        gonzalez_za_output, gonzalez_pe_output, 
+                        gonzalez_en_output, gonzalez_pa_output, 
+                        osuri_control_output, osuri_fragment_output, buzzard_output,
+                        castro_output, chalmandrier_output, choler_output, 
+                        eallonardo_output, kober_output, 
+                        jager_output, jaschke_output,  
+                        liane_sweden_output, liane_finland1_output, liane_finland2_output,  
+                        liane_russia_output, makelele_output, marteinsdottir_output, 
+                        raevel_output, riva_output, 
+                        standen_output, rolhauser_output)
+
+data_input_list2 <-  lst(kembel_kinsella_output, kembel_onefour_output,
+                        frenette_missour_output,
+                        frenette_enjil_output, frenette_lamjalil_output,
+                        frenette_maatarka_output, frenette_tirnest_output,
+                        gonzalez_ma_output, gonzalez_ch_output, gonzalez_ca_output, gonzalez_co_output,
+                        gonzalez_za_output, gonzalez_pe_output, 
+                        gonzalez_en_output, gonzalez_pa_output, 
+                        osuri_control_output, osuri_fragment_output, buzzard_output,
+                        castro_output, chalmandrier_output, choler_output, 
+                        eallonardo_output, kober_output, 
+                        jager_output, jaschke_output,  
+                        liane_sweden_output, liane_finland1_output, liane_finland2_output,  
+                        liane_russia_output, makelele_output, marteinsdottir_output, 
+                        raevel_output, riva_output, 
+                        standen_output, rolhauser_output)
+
+
+
+```
+
+```{r extract species names}
+
+#Here, all species names from trait and vegetation data in the collected datasets are extracted
+
+output_species <- data.frame() 
+
+for(i in 1:length(data_input_list)){
+  
+  
+  input <- data_input_list[[i]]
+  
+   species_traits <- input[["input_trait"]] %>% 
+   as.data.frame() %>%
+   select(Name) %>%
+   mutate(study = input[["study_name"]]) %>%
+   distinct()
+
+  species <- colnames(input[["input_veg"]]) %>% 
+  as.data.frame() %>%
+  rename(Name = ".") %>%
+  mutate(study = input[["study_name"]]) %>%
+  bind_rows(species_traits) %>%
+  distinct() 
+  
+  output_species <- bind_rows(output_species, species)
+  
+  
+}
+
+# These are the species that do not have a direct match with the names in the imputated data
+excluded <- output_species %>%
+  filter(Name %notin% trait_imp_specieslvl$Name)  %>%
+  rename(Orig_name = Name) 
+
+length(unique(excluded$Orig_name)) # 483
+length(unique(output_species$Name)) # 1520
+
+# These are the species that are not included but do have a match which is not a synonym
+excluded_not_synonyms <- classification %>%
+  filter(scientificName %in% excluded$Orig_name) %>%
+  select(scientificName, acceptedNameUsageID, taxonomicStatus, nomenclaturalStatus) %>%
+  filter(taxonomicStatus != "Synonym")
+
+select_matches <- classification %>%
+  filter(scientificName %in% excluded$Orig_name) %>%
+  select(scientificName, acceptedNameUsageID, taxonomicStatus, nomenclaturalStatus) %>%
+  drop_na(acceptedNameUsageID) %>% #select the synonyms
+  filter(scientificName %notin% excluded_not_synonyms$scientificName) %>%
+  rename(Orig_name = scientificName) %>%
+  distinct() %>%
+  filter(acceptedNameUsageID %notin% c("wfo-0000845609",
+                                       "wfo-0000855460",
+                                       "wfo-0001285367",
+                                       "wfo-0000871854",
+                                       "wfo-0000871222",
+                                       "wfo-0000288166",
+                                       "wfo-0000199006",
+                                       "wfo-0000198960",
+                                       "wfo-0000902014",
+                                       "wfo-0000881302",
+                                       "wfo-0001340659")) 
+# These species have more than one synonym match, 
+# duplicates are removed based on nomenclaturalStatus
+
+
+multiple <- select_matches %>%
+  group_by(Orig_name) %>%
+  filter(n() > 1)
+
+new_names_synonyms <- classification %>%
+  filter(taxonID %in% select_matches$acceptedNameUsageID) %>%
+  select(scientificName, taxonID) %>%
+  rename(acceptedNameUsageID = taxonID) %>%
+  left_join(select_matches) %>%
+  select(-c(nomenclaturalStatus, taxonomicStatus)) %>%
+  distinct() %>%
+  group_by(Orig_name) %>%
+  filter(n() == 1) %>%
+  ungroup() %>%
+  filter(Orig_name %notin% c("Randia subcordata", "Typha glauca", "Eruca sativa", 
+                             "Quercus corrugata", "Fraxinus dubia",
+                             "Saussurea superba", "Cassine glauca", "Smilacina racemosa")) %>% 
+  # These new names exists already in their respective datasets
+  left_join(excluded) %>%
+  rename(Name = scientificName) %>%
+  group_by(Name, study) %>%
+  filter(n()==1) %>%
+  ungroup()
+    #Some synonym names are coupled to the same accepted species within one study
+
+#These are all the species that had a match with the TRY database in the end.
+total_included_species_list <- output_species %>%
+  filter(Name %notin% new_names_synonyms$Orig_name) %>%
+  bind_rows(new_names_synonyms)
+
+# wat doe ik hier ook alweer en waarom?
+test_output <- data.frame()
+
+for(i in 1:length(data_input_list)){
+  
+  dataset <- data_input_list[[i]]
+  study_name <- dataset[["study_name"]]
+  
+  species_list <- output_species %>%
+    filter(study == study_name)
+  
+  check <- new_names_synonyms %>%
+    filter(study == study_name) %>%
+    filter(Name %in% species_list$Name)
+  
+  test_output <- bind_rows(test_output, check)
+    
+}
+
+```
+
+
+```{r na calculations}
+
+
+na_check <- try_traits_tax_final %>%
+  filter(wfo_match %in% total_included_species_list$Name) %>%
+  select(c(wfo_match, TraitName, StdValue)) %>%
+  group_by(wfo_match, TraitName) %>%
+  summarize(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  ungroup() %>%
+  pivot_wider(values_from = StdValue, names_from = TraitName) 
+
+save <- as.data.frame(rowSums(is.na(na_check)))
+
+na_n_species <- (colSums(is.na(na_check))) %>%
+  data.frame() %>%
+  rename(na_n = ".") %>%
+  mutate(perc_na = na_n/nrow(na_check)*100) %>%
+  rownames_to_column(var = "Trait") %>%
+  filter(Trait %notin% c("wfo_match"))
+
+
+```
+
+```{r missing na per study}
+
+traits_na <- traits_rmse <- data.frame()
+
+for(i in 1:length(data_input_list)){
+    
+    dataset <- data_input_list[[i]]
+    
+    input_veg = dataset[["input_veg"]]
+    input_veg_fd = dataset[["input_veg_fd"]]
+    input_trait = dataset[["input_trait"]]  
+    input_trait_fd = dataset[["input_trait_fd"]]
+    trait_detail = dataset[["trait_detail"]]
+    trait_information = dataset[["trait_information"]]
+    study_name = dataset[["study_name"]]
+  
+ extract <- new_names_synonyms %>%
+    filter(study == study_name)
+  
+  not_included_traits <- c("Leaf_angle", "Photo_path", "Root_density", "Lateral_spread",
+                           "Resprout", "Bark_thickness_rel", "Rhizome", "Stem_emerg",
+                           "ShootDMC", "Leaf_shape", "Root_diam", "twFWC", "FWC")
+  
+  traits_orig <- trait_information[["traitlist"]]
+  
+  traits_filtered <- traits_orig[traits_orig %notin% not_included_traits]  
+  
+  traitlist <- sort(c(traits_filtered))
+  cwm_names <- paste0(traitlist, "_cwm")
+  cwv_names <- paste0(traitlist, "_cwv")
+  
+  trait_information <- lst(traitlist, cwm_names, cwv_names)
+  
+  if(nrow(extract) > 0){
+    
+    input_veg <- input_veg %>%
+      rename(!!!setNames(extract$Orig_name, extract$Name)) %>%
+      select(order(colnames(.)))
+    
+    input_trait <- input_trait %>%
+      mutate(Name = case_when(
+        Name %in% extract$Orig_name ~ extract$Name[match(Name, extract$Orig_name)],
+        TRUE ~ Name)) %>%
+      arrange(Name)
+    
+  } 
+  
+  input_veg <- input_veg[, which(colSums(input_veg) > 0)]
+  
+    try_traits <- traits_not_imp_specieslvl %>%
+    filter(TraitName %in% traitlist) %>%
+    filter(Name %in% colnames(input_veg)) %>%
+    pivot_wider(names_from = Name, values_from = StdValue) %>%
+    mutate(na_count = rowSums(is.na(.)),
+           total_count = ncol(.) - 1) %>%
+    select(TraitName, na_count, total_count) %>%
+    mutate(study = study_name) 
+    
+ missing_traits <- traitlist %>% as.data.frame() %>%
+   filter(. %notin% try_traits$TraitName) %>%
+   rename(TraitName = ".")
+
+# Add missing entries to dataframe
+if (nrow(missing_traits) > 0) {
+  new_rows <- data.frame(TraitName = missing_traits, 
+                         na_count = unique(try_traits$total_count),
+                         total_count = unique(try_traits$total_count),
+                         study = study_name)
+  
+  try_traits <- rbind(try_traits, new_rows)
+}
+ 
+  traits_try2 <- trait_imp_specieslvl %>% 
+    select(c(Name, traits_filtered)) %>%
+    filter(Name %in% colnames(input_veg)) %>%
+    filter(Name %in% input_trait$Name) %>%
+    pivot_longer(cols = 2:ncol(.), names_to = "TraitName", values_to = "Try_values")
+
+  if(trait_detail == "Study"){
+  traits_try_orig <- input_trait %>%
+    select(Name, all_of(traits_filtered)) %>%
+    mutate(across(where(is.numeric), ~ c(scale(., center = F)))) %>%
+    pivot_longer(cols = 2:ncol(.), names_to = "TraitName", values_to = "Orig_values") %>%
+    filter(Name %in% traits_try2$Name) %>%
+    full_join(traits_try2)%>%
+    mutate(study = study_name)
+  } else {
+    traits_try_orig <- input_trait %>%
+    select(Name, Plot_code, all_of(traits_filtered)) %>%
+    filter(Plot_code %in% rownames(input_veg)) %>%
+    mutate(across(where(is.numeric), ~ c(scale(., center = F)))) %>%
+    pivot_longer(cols = 3:ncol(.), names_to = "TraitName", values_to = "Orig_values") %>%
+    filter(Name %in% traits_try2$Name) %>%
+    full_join(traits_try2) %>%
+    mutate(study = study_name)
+    
+  }
+    
+
+#Als TRY het slecht doet. Komt dat door TRY of door de imputaties?    
+    traits_na <- bind_rows(traits_na, try_traits)
+    traits_rmse <- bind_rows(traits_rmse, traits_try_orig)
+}
+
+traits_na2 <- traits_na %>%
+  mutate(perc_na = na_count/total_count) %>%
+  mutate(study_group = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$study_group[match(study,
+                       study_names_df$study)], TRUE ~ study)) %>%
+  mutate(study = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$new_study_name[match(study,
+                       study_names_df$study)], TRUE ~ study)) %>%
+  filter(study %notin% c("Gonzalez (Ca)", "Gonzalez (Ch)", "Gonzalez (Pa)", "Osuri (Fragment)")) %>%
+  group_by(study) %>%
+  summarize(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  mutate(perc_na = perc_na*100)
+
+#write_xlsx(traits_na2, path = "traits_na.xlsx")
+
+
+traits_rmse2 <- traits_rmse %>%
+ mutate(study_group = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$study_group[match(study,
+                       study_names_df$study)], TRUE ~ study))  %>%
+ filter(study %notin% c("Gonzalez_ca", "Gonzalez_ch", "Gonzalez_pa", 
+                         "Gonzalez_ca", "Gonzalez_pe",  "Osuri_fragment")) %>%
+  mutate(SQ_ER = (Orig_values - Try_values)^2) %>%
+    select(-c(Orig_values, Try_values)) %>%
+    group_by(TraitName, study) %>%
+    summarise(MSE = mean(SQ_ER)) %>%
+    ungroup() %>%
+    group_by(study) %>%
+    summarise(MSE = mean(MSE)) %>%
+    ungroup() %>%
+    mutate(RMSE = sqrt(MSE)) 
+
+temp_plot <- traits_rmse2 %>%
+  full_join(traits_na2) %>%
+  relocate(study, RMSE, perc_na)
+
+try_species_trait_list <- try_traits_tax_final %>%
+  select(wfo_match, TraitName) %>%
+  distinct() %>%
+  mutate(TraitName = case_when(
+  TraitName %in% trait_names_df$TraitName ~ trait_names_df$Abbreviation[match(TraitName,
+  trait_names_df$TraitName)],
+  TRUE ~ TraitName)) %>%
+  mutate(imp = "No"  ) %>%
+  filter(TraitName %notin% not_included_traits) %>%
+  rename(Name = wfo_match) %>%
+  filter(Name %in% traits_rmse$Name)
+
+traits_rmse3 <- traits_rmse %>%
+  left_join(try_species_trait_list) %>%
+  mutate_all(~ ifelse(is.na(.), "Yes", .)) 
+
+
+traits_rmse4 <- traits_rmse3 %>%
+  mutate(study_group = case_when(study == "Liane_finland_1"  ~ "Liane",
+                                 study == "Liane_finland_2"  ~ "Liane",
+                                 study == "Liane_russia"  ~ "Liane",
+                                 study == "Liane_sweden"  ~ "Liane",
+                                 study == "Kembel_kinsella"  ~ "Kembel",
+                                 study == "Kembel_onefour"  ~ "Kembel",
+                                 study == "Frenette2010" ~ "Frenette",
+                                 study == "kober" ~ "Kober",
+                                 study == "Frenette_missour" ~ "Frenette",
+                                 study == "Frenette_enjil" ~ "Frenette",
+                                 study == "Frenette_lamjalil" ~ "Frenette",
+                                 study == "Frenette_maatarka" ~ "Frenette",
+                                 study == "Frenette_tirnest" ~ "Frenette",
+                                 study == "Gonzalez_ma" ~ "Gonzalez",
+                                 study == "Gonzalez_ch" ~ "Gonzalez",
+                                 study == "Gonzalez_ca" ~ "Gonzalez",
+                                 study == "Gonzalez_za" ~ "Gonzalez",
+                                 study == "Gonzalez_pe" ~ "Gonzalez",
+                                 study == "Gonzalez_en" ~ "Gonzalez",
+                                 study == "Gonzalez_pa" ~ "Gonzalez",
+                                 study == "Osuri_control" ~ "Osuri",
+                                 study == "Osuri_fragment" ~ "Osuri",
+                                 TRUE ~ study)) %>%
+ filter(study %notin% c("Gonzalez_ca", "Gonzalez_ch", "Gonzalez_pa", 
+                         "Gonzalez_ca", "Gonzalez_pe",  "Osuri_fragment")) %>%
+  mutate(SQ_ER = (Orig_values - Try_values)^2) %>%
+    select(-c(Orig_values, Try_values)) %>%
+    mutate(plot_study = paste(Plot_code, study)) %>%
+    group_by(plot_study, study_group, imp) %>%
+    summarise(MSE = mean(SQ_ER)) %>%
+    ungroup() %>%
+    group_by(study_group, imp) %>%
+    summarise(MSE = mean(MSE)) %>%
+    ungroup() %>%
+    mutate(RMSE = sqrt(MSE)) 
+
+ggplot(traits_rmse4, aes(x = imp, y = (RMSE))) +
+  geom_boxplot(aes(fill = imp)) +
+   labs(title = "RMSE for imputated data vs. original TRY data",
+       x = NULL,
+       y = "RMSE",
+       fill = "Imputated") +
+  theme_minimal() +
+ # scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        legend.position = "bottom") +
+  guides(fill = guide_legend(nrow = 1)) 
+
+stat.test <- traits_rmse4 %>%
+  pairwise_t_test(
+    RMSE ~ imp, paired = TRUE, detailed = T) 
+
+ggplot(all_lambda_orig, aes(x = trait_name, y = (lambda))) +
+  geom_boxplot(aes(fill = trait_name)) +
+  labs(title = "Lambda's - TRY trait values - significant plots",
+       x = NULL,
+       y = "KLR2",
+       fill = "Trait") +
+  theme_minimal() +
+  facet_wrap(~study_group_n, scales = "free") +
+ # scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        legend.position = "bottom") +
+  guides(fill = guide_legend(nrow = 3)) 
+
+
+
+ggplot(temp_plot, aes(x = RMSE, y = perc_na, colour = study)) + 
+         geom_point(size = 3) +
+         theme_minimal()+ 
+         labs(x = "RMSE", y = "Missing data (%)", colour = "Dataset",
+              title = "Relationship between missing trait data and RMSE") +
+          theme(legend.position = "bottom") +
+  guides(colour = guide_legend(nrow = 4)) 
+         
+
+for(i in 1:length(data_input_list))
+
+```
+
+```{r coverages check}
+
+data_input_list2 <-  lst(kembel_kinsella_output, kembel_onefour_output,
+                        frenette_missour_output,
+                        frenette_enjil_output, frenette_lamjalil_output,
+                        frenette_maatarka_output, frenette_tirnest_output,
+                        gonzalez_ma_output,  
+                        gonzalez_za_output,  
+                        gonzalez_en_output,  
+                        osuri_control_output,  buzzard_output,
+                        castro_output, chalmandrier_output, choler_output, 
+                        eallonardo_output, kober_output, 
+                        jager_output, jaschke_output,  
+                        liane_sweden_output, liane_finland1_output, liane_finland2_output,  
+                        liane_russia_output, makelele_output, marteinsdottir_output, 
+                        raevel_output, riva_output, 
+                        standen_output, rolhauser_output)
+
+
+
+data_summary <- data.frame()
+
+for(i in 1:length(data_input_list2)){
+  
+  dataset <- data_input_list2[[i]]
+  
+  ##
+  extract <- new_names_synonyms %>%
+                filter(study == dataset[["study_name"]])
+  
+  not_included_traits <- c("Leaf_angle", "Photo_path", "Root_density", "Lateral_spread",
+                           "Resprout", "Bark_thickness_rel", "Rhizome", "Stem_emerg",
+                           "ShootDMC", "Leaf_shape", "Root_diam", "twFWC", "FWC")
+  
+  traits_orig <- dataset[["trait_information"]][["traitlist"]]
+
+  traits_filtered <- traits_orig[traits_orig %notin% not_included_traits]  
+  
+  traitlist <- sort(c(traits_filtered))
+  cwm_names <- paste0(traitlist, "_cwm")
+  cwv_names <- paste0(traitlist, "_cwv")
+
+  trait_information <- lst(traitlist, cwm_names, cwv_names)
+  
+  if(nrow(extract) > 0){
+    
+  input_veg <- dataset[["input_veg"]] %>%
+   rename(!!!setNames(extract$Orig_name, extract$Name)) %>%
+   select(order(colnames(.)))
+  
+  input_trait <- dataset[["input_trait"]] %>%
+    mutate(Name = case_when(
+    Name %in% extract$Orig_name ~ extract$Name[match(Name, extract$Orig_name)],
+    TRUE ~ Name)) %>%
+    arrange(Name)
+  }else{
+    input_veg <- dataset[["input_veg"]] 
+    input_trait <- dataset[["input_trait"]]
+  }
+  ##
+    if(dataset[["trait_detail"]] == "Study"){
+  input_trait <- input_trait %>%
+    select(Name, all_of(traits_filtered))
+  } else{
+    input_trait <- input_trait %>%
+    select(Name, Plot_code, all_of(traits_filtered))
+    
+  }
+
+  input_trait <- input_trait %>%
+    filter(Name %in% trait_imp_specieslvl$Name)
+
+  input_processed_orig <-  cats_preparation(input_veg = input_veg, 
+                                          input_trait = input_trait,
+                                          cutoff_value = 0.6,
+                                          trait_detail = dataset[["trait_detail"]],
+                                          trait_information = trait_information)
+  
+  n_plot_before <- nrow(input_processed_orig[["relative_abundances"]][["matrix"]])
+  
+  n_plot_after <- nrow(input_processed_orig[["relative_abundances"]][["matrix4traits_prop"]])
+  
+    
+  regional_trait_coverage <- input_processed_orig[["relative_abundances"]][["matrix"]] %>% 
+    as.data.frame() %>%
+    summarise(across(where(is.numeric), ~ sum(.))) %>%
+    t() %>%
+    as.data.frame() %>%
+    mutate(Total_cover = rowSums(.)) %>%
+    select(Total_cover) %>%
+    filter(Total_cover != 0) %>%
+    mutate(`Coverage meta-community (%)` = (Total_cover / sum(Total_cover))*100) %>%
+    rownames_to_column(var = "Name") %>%
+    filter(Name %in% input_trait$Name) %>%
+    select(Name, `Coverage meta-community (%)`) %>%
+    summarise(across(where(is.numeric), ~sum(.))) %>%
+    mutate(Dataset = dataset[["study_name"]])
+  
+  
+    plot_count <- bind_cols(`Plots before (n)` = n_plot_before, 
+                          `Plots after (n)` =  n_plot_after,
+                          Dataset = dataset[["study_name"]],
+                          `Trait detail`  = dataset[["trait_detail"]]) %>%
+      full_join(regional_trait_coverage) 
+
+    data_summary <- bind_rows(data_summary, plot_count)
+  
+}
+
+coverage_all <- data.frame()
+
+for(i in 1:length(data_input_list2)){
+
+  dataset <- data_input_list2[[i]]
+  
+  extract <- new_names_synonyms %>%
+      filter(study == dataset[["study_name"]])
+
+  not_included_traits <- c("Leaf_angle", "Photo_path", "Root_density", "Lateral_spread",
+                         "Resprout", "Bark_thickness_rel", "Rhizome", "Stem_emerg",
+                         "ShootDMC", "Leaf_shape", "Root_diam", "twFWC", "FWC")
+
+  traits_orig <- dataset[["trait_information"]][["traitlist"]]
+
+  traits_filtered <- traits_orig[traits_orig %notin% not_included_traits]  
+
+  traitlist <- sort(c(traits_filtered))
+  cwm_names <- paste0(traitlist, "_cwm")
+  cwv_names <- paste0(traitlist, "_cwv")
+
+  trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+  if(nrow(extract) > 0){
+  
+  input_veg <- dataset[["input_veg"]]  %>%
+    rename(!!!setNames(extract$Orig_name, extract$Name)) %>%
+    select(order(colnames(.)))
+  
+  input_trait <- dataset[["input_trait"]]  %>%
+    mutate(Name = case_when(
+      Name %in% extract$Orig_name ~ extract$Name[match(Name, extract$Orig_name)],
+      TRUE ~ Name)) %>%
+    arrange(Name)
+  } else {
+  
+  input_veg <- dataset[["input_veg"]] 
+  input_trait <- dataset[["input_trait"]]
+    
+  }
+
+  input_trait_try <- input_trait %>%
+    filter(Name %in% trait_imp_specieslvl$Name)
+
+  veg_data <- list()
+  
+  veg_data$matrix <-  input_veg
+  
+  trait_data <-  input_trait %>%
+    filter(Name %in% trait_imp_specieslvl$Name)
+  
+  # add a matrix of proportional abundances (abundances divided by total site abundances)
+  veg_data$matrix_prop <- veg_data$matrix / rowSums(veg_data$matrix)
+  
+  # add a matrix of proportional abundances that is cut down to species that are matched in trait the data
+  veg_data$matrix_prop_match <- veg_data$matrix_prop[, colnames(veg_data$matrix_prop) %in% 
+                                trait_data$Name]
+  
+  veg_data$matrix_prop_match_try <- veg_data$matrix_prop[, colnames(veg_data$matrix_prop) %in% 
+                                input_trait_try$Name]
+  
+
+  coverage <- rowSums(veg_data$matrix_prop_match) %>% 
+    as.data.frame() %>%
+    rename(Coverage = ".") %>%
+    rownames_to_column(var = "Plot_code") %>%
+    mutate(study = dataset[["study_name"]])
+
+  coverage_per_plot <- rowSums(veg_data$matrix_prop_match_try) %>% 
+    as.data.frame() %>%
+    rename(coverage_try = ".") %>%
+    rownames_to_column(var = "Plot_code") %>%
+    mutate(study = dataset[["study_name"]]) %>%
+    full_join(coverage)
+
+  coverage_all <- bind_rows(coverage_all, coverage_per_plot)
+}
+
+coverage_all_fig <- coverage_all %>%
+  relocate(Plot_code, study) %>%
+  pivot_longer(cols = 3:4, names_to = "coverage", values_to = "value") %>%
+  filter(coverage == "Coverage") %>%
+  mutate(value = value* 100) %>%
+  mutate(study = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$new_study_name[match(study,
+                       study_names_df$study)], TRUE ~ study))
+
+ggplot(coverage_all_fig, aes(x = study, y = value, colour = study)) +
+  geom_boxplot() +
+  #geom_hline(yintercept = 0.8, color = "darkblue", linetype = "dashed", linewidth = 1) +
+  geom_hline(yintercept = 60, color = "darkblue", linetype = "dashed", linewidth = 1) +
+ # facet_wrap(~`Trait coverage (%)`) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 12)) +
+  theme(legend.position = "none") +
+  guides(color = guide_legend(nrow = 5)) +
+  labs(y = "Trait coverage (%)", x = NULL, colour = "Dataset")
+
+
+
+
+```
+
+```{r all cats calculations}
+source("src/functions2.R")
+output_list <- lst()
+
+for(i in 1:length(data_input_list)){
+  
+  dataset <- data_input_list[[i]]
+
+  output <- test_function3(input_veg = dataset[["input_veg"]], 
+                          input_veg_fd = dataset[["input_veg_fd"]],
+                          input_trait = dataset[["input_trait"]],
+                          input_trait_fd = dataset[["input_trait_fd"]],
+                          cutoff_value = dataset[["cutoff_value"]],
+                          trait_detail = dataset[["trait_detail"]],
+                          trait_information = dataset[["trait_information"]],
+                          study_name = dataset[["study_name"]])
+
+  output_list[[i]] <- output
+
+}
+
+
+input_veg = dataset[["input_veg"]]
+input_veg_fd = dataset[["input_veg_fd"]]
+input_trait = dataset[["input_trait"]]  
+input_trait_fd = dataset[["input_trait_fd"]]
+cutoff_value = dataset[["cutoff_value"]]
+trait_detail = dataset[["trait_detail"]]
+trait_information = dataset[["trait_information"]]
+study_name = dataset[["study_name"]]
+
+
+```
+
+```{r preparation for visualisation}
+
+
+temp_fig_plot <- temp_raw_plot <- traits_n_plot <- meta_data_all <- data.frame()
+
+for(i in 1:length(output_list)){
+  
+  
+  cats_orig <- output_list[[i]][["cats_orig"]] %>%
+    mutate(model.prior.plus.traits_uncorrected = model.prior.plus.traits,
+           model.prior.plus.traits = 
+             case_when(model.prior.plus.traits < model.mean.null.given.prior ~ model.mean.null.given.prior,
+                       TRUE ~ model.prior.plus.traits))
+  
+  cats_orig_genus <- output_list[[i]][["cats_orig_genus"]] %>%
+    mutate(model.prior.plus.traits_uncorrected = model.prior.plus.traits,
+           model.prior.plus.traits = 
+             case_when(model.prior.plus.traits < model.mean.null.given.prior ~ model.mean.null.given.prior,
+                       TRUE ~ model.prior.plus.traits))
+  
+  cats_try <- output_list[[i]][["cats_try"]] %>%
+    mutate(model.prior.plus.traits_uncorrected = model.prior.plus.traits,
+           model.prior.plus.traits = 
+             case_when(model.prior.plus.traits < model.mean.null.given.prior ~ model.mean.null.given.prior,
+                       TRUE ~ model.prior.plus.traits))
+  
+  cats_try_genus <- output_list[[i]][["cats_try_genus"]] %>%
+    mutate(model.prior.plus.traits_uncorrected = model.prior.plus.traits,
+           model.prior.plus.traits = 
+             case_when(model.prior.plus.traits < model.mean.null.given.prior ~ model.mean.null.given.prior,
+                       TRUE ~ model.prior.plus.traits))
+
+  diversity_info <- output_list[[i]][["diversity_info_species"]]
+  study_name <- unique(diversity_info$study)
+  
+  cats_combined_orig <- cats_visualisation(cats_orig, "Orig")
+  
+  raw_orig <- cats_orig %>%
+   select(study, Plot_code, model.bias, pval.uniform,
+           model.uniform.prior.plus.traits,
+           model.mean.null.given.prior,
+           model.prior.plus.traits,
+           model.prior.plus.traits_uncorrected,
+           obs.stat_u) %>%
+    rename(raw_meta = model.mean.null.given.prior,
+           raw_trait = model.uniform.prior.plus.traits,
+           raw_meta_trait = model.prior.plus.traits,
+           raw_meta_trait_uncor = model.prior.plus.traits_uncorrected) %>%
+    mutate(trait_minus_bias = raw_trait - model.bias) %>%
+    relocate(pval.uniform,   obs.stat_u) %>%
+    pivot_longer(cols = 5:10, values_to = "fit", names_to = "Model_type") %>%
+    left_join(diversity_info) %>%
+    mutate(traits = "Orig")
+
+diversity_info <- output_list[[i]][["diversity_info_try_species"]]  
+
+  raw_try <- cats_try %>%
+   select(study, Plot_code, model.bias, pval.uniform,
+           model.uniform.prior.plus.traits,
+           model.mean.null.given.prior,
+           model.prior.plus.traits,
+           model.prior.plus.traits_uncorrected,
+           obs.stat_u) %>%
+    rename(raw_meta = model.mean.null.given.prior,
+           raw_trait = model.uniform.prior.plus.traits,
+           raw_meta_trait = model.prior.plus.traits,
+           raw_meta_trait_uncor = model.prior.plus.traits_uncorrected) %>%
+    mutate(trait_minus_bias = raw_trait - model.bias) %>%
+    relocate(pval.uniform,   obs.stat_u) %>%
+    pivot_longer(cols = 5:10, values_to = "fit", names_to = "Model_type") %>%
+    left_join(diversity_info) %>%
+    mutate(traits = "Try")
+    
+
+  cats_combined_try <- cats_visualisation(cats_try, "Try")
+  
+  diversity_info <- output_list[[i]][["diversity_info_genus"]]
+  cats_combined_orig_genus <- cats_visualisation(cats_orig_genus, "Orig_genus")
+  
+   raw_orig_genus <- cats_orig_genus %>%
+   select(study, Plot_code, model.bias, pval.uniform,
+           model.uniform.prior.plus.traits,
+           model.mean.null.given.prior,
+           model.prior.plus.traits,
+           model.prior.plus.traits_uncorrected,
+           obs.stat_u) %>%
+    rename(raw_meta = model.mean.null.given.prior,
+           raw_trait = model.uniform.prior.plus.traits,
+           raw_meta_trait = model.prior.plus.traits,
+           raw_meta_trait_uncor = model.prior.plus.traits_uncorrected) %>%
+    mutate(trait_minus_bias = raw_trait - model.bias) %>%
+    relocate(pval.uniform,   obs.stat_u) %>%
+    pivot_longer(cols = 5:10, values_to = "fit", names_to = "Model_type")%>%
+    left_join(diversity_info) %>%
+    mutate(traits = "Orig_genus")
+  
+  
+  diversity_info <- output_list[[i]][["diversity_info_try_genus"]]
+  
+    raw_try_genus <- cats_try_genus %>%
+   select(study, Plot_code, model.bias, pval.uniform,
+           model.uniform.prior.plus.traits,
+           model.mean.null.given.prior,
+           model.prior.plus.traits,
+           model.prior.plus.traits_uncorrected,
+           obs.stat_u) %>%
+    rename(raw_meta = model.mean.null.given.prior,
+           raw_trait = model.uniform.prior.plus.traits,
+           raw_meta_trait = model.prior.plus.traits,
+           raw_meta_trait_uncor = model.prior.plus.traits_uncorrected) %>%
+    mutate(trait_minus_bias = raw_trait - model.bias) %>%
+    relocate(pval.uniform,   obs.stat_u) %>%
+    pivot_longer(cols = 5:10, values_to = "fit", names_to = "Model_type")  %>%
+    left_join(diversity_info) %>%
+    mutate(traits = "Try_genus")
+  
+  
+
+  cats_combined_try_genus <- cats_visualisation(cats_try_genus, "Try_genus")
+
+  
+  temp_fig_plot <- bind_rows(temp_fig_plot, cats_combined_orig,
+                        cats_combined_orig_genus,
+                        cats_combined_try,
+                        cats_combined_try_genus)
+  
+  temp_raw_plot <- bind_rows(temp_raw_plot, raw_orig, raw_try, 
+                             raw_orig_genus, raw_try_genus)
+  
+  dataset <- data_input_list[[i]]
+  
+  not_included_traits <- c("Leaf_angle", "Photo_path", "Root_density", "Lateral_spread",
+                           "Resprout", "Bark_thickness_rel", "Rhizome", "Stem_emerg",
+                           "ShootDMC", "Leaf_shape", "Root_diam", "twFWC", "FWC")
+  
+  traits_orig <- dataset[["trait_information"]][["traitlist"]]
+
+  traits_filtered <- traits_orig[traits_orig %notin% not_included_traits]  
+  
+  traits <- data.frame(traits_n = length(traits_filtered), study = dataset[["study_name"]])
+  
+  meta_data <-  output_list[[i]][["diversity_info_species"]] %>%
+    select(Plot_code, shannon, simpson, species_richness, evenness, empty_states,
+           meta_size, study)
+  
+  meta_data_all <- bind_rows(meta_data_all, meta_data)
+  traits_n_plot <- bind_rows(traits_n_plot, traits)
+  
+}
+
+all_lambda <- data.frame()
+
+for(i in 1:length(output_list)){
+  
+  
+  lambda_orig <- output_list[[i]][["cats_orig"]] %>%
+    select("Plot_code", "study", ends_with(" fit1")) %>%
+    select(-"prior fit1", -"intercept fit1") %>%
+    pivot_longer(cols = 3:ncol(.), names_to = "trait_name", values_to = "lambda") %>%
+    mutate(Traits = "Orig")
+  
+   lambda_try <- output_list[[i]][["cats_try"]] %>%
+    select("Plot_code", "study", ends_with(" fit1")) %>%
+    select(-"prior fit1", -"intercept fit1") %>%
+    pivot_longer(cols = 3:ncol(.), names_to = "trait_name", values_to = "lambda") %>%
+    mutate(Traits = "Try")
+  
+  all_lambda <- bind_rows(all_lambda, lambda_orig, lambda_try)
+  
+}
+
+
+
+
+meta_data_all2 <- meta_data_all %>%
+  full_join(traits_n_plot) %>% 
+  rename(Dataset = study) %>% 
+  drop_na() %>%
+   full_join(data_summary) %>%
+  mutate(Dataset = case_when(Dataset %in% study_names_df$study ~ 
+                       study_names_df$new_study_name[match(Dataset,
+                       study_names_df$study)], TRUE ~ Dataset)) %>%
+  select(Dataset, traits_n, meta_size,
+         `Plots before (n)`, `Plots after (n)`,
+         `Coverage meta-community (%)`, `Trait detail`) %>%
+  rename(`Size meta-community` = meta_size, `Traits (n)` = traits_n) %>%
+  distinct() %>%
+  mutate(across(`Traits (n)`, ~ ifelse(is.na(.), 8, .))) %>%
+  mutate(across(`Size meta-community`, ~ ifelse(is.na(.), 3, .))) %>%
+  drop_na() %>%
+  arrange(Dataset) 
+
+#write_xlsx(meta_data_all2, path = "docs/meta_data_all.xlsx")
+
+all_lambda2 <- all_lambda %>%
+    mutate(plot_study = paste(Plot_code, study)) %>%
+     mutate(study_group = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$study_group[match(study,
+                       study_names_df$study)], TRUE ~ study))  %>%
+  filter(study %notin% c("Gonzalez_ca", "Gonzalez_ch", "Gonzalez_pa", 
+                         "Gonzalez_ca", "Gonzalez_pe",  "Osuri_fragment"))
+  
+
+lambda_tabel2 <- all_lambda2 %>%
+  group_by(trait_name, Traits) %>%
+
+  mutate(trait_name = gsub("fit1", "", trait_name)) %>%
+  pivot_wider(values_from = lambda, names_from = Traits) %>%
+    summarize(across(where(is.numeric), list(median = median, sd = sd))) 
+temp <- all_lambda2 %>%
+  filter(study == "Gonzalez_pe")
+
+all_lambda_sign <- all_lambda2 %>%  
+    filter(plot_study %in% c(signif_try$plot_study)) %>%
+  filter(Traits %in% "Try") %>%
+  bind_rows(all_lambda_orig)
+
+
+plot_count <- signif %>%
+  select(study_group, study, Plot_code) %>%
+  distinct() %>%
+  group_by(study_group) %>% 
+  tally()
+
+all_lambda_orig <- all_lambda2 %>%
+  filter(plot_study %in% c(signif$plot_study)) %>%
+  filter(Traits %in% "Try") %>%
+  full_join(plot_count) %>%
+  mutate(study_group_n = paste0(study_group, " (", n, ")"))
+
+ggplot(all_lambda_orig, aes(x = trait_name, y = (lambda))) +
+  geom_boxplot(aes(fill = trait_name)) +
+  labs(title = "Lambda's - TRY trait values - significant plots",
+       x = NULL,
+       y = "KLR2",
+       fill = "Trait") +
+  theme_minimal() +
+  facet_wrap(~study_group_n, scales = "free") +
+ # scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        legend.position = "bottom") +
+  guides(fill = guide_legend(nrow = 3)) 
+
+
+temp_raw_plot <- temp_raw_plot %>%
+    mutate(plot_study = paste(Plot_code, study)) %>%
+  #  filter(study %notin% c("Aiello1992", "Aiello2011" , "Asefa", "Osuri", "Frenette2009")) %>%
+    mutate(study_group = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$study_group[match(study,
+                       study_names_df$study)], TRUE ~ study)) %>%
+  filter(study %notin% c("Gonzalez_ca", "Gonzalez_ch", "Gonzalez_pa", 
+                         "Gonzalez_ca", "Gonzalez_pe",  "Osuri_fragment"))
+
+signif <- temp_raw_plot %>%
+  filter(traits %in% c("Orig")) %>%
+  filter(pval.uniform < 0.05) %>%
+  select(plot_study) %>%
+  distinct()
+
+signif_try <- temp_raw_plot %>%
+  filter(traits %in% c("Try")) %>%
+  filter(pval.uniform < 0.05) %>%
+  select(plot_study) %>%
+  distinct()
+
+
+```
+
+```{r (m,t) - m relationship with mean_dist}
+
+
+temp <- temp_raw_plot %>%
+  filter(Model_type == "raw_trait") 
+
+temp <- temp_raw_plot %>% 
+  filter(traits == "Orig") %>%
+  select(study, Plot_code, Model_type, fit, mean_dist) %>%
+  pivot_wider(names_from = Model_type, values_from = fit) %>%
+  filter(raw_meta_trait_uncor < raw_meta) %>%
+  mutate(dif = raw_meta - raw_meta_trait_uncor) %>%
+  mutate(study_plot = paste(study, Plot_code)) %>%
+  filter(study %notin% c("Aiello1992", "Aiello2011" , "Asefa", "Osuri")) %>%
+  mutate(study_group = case_when(study == "Liane_finland_1"  ~ "Liane",
+                                 study == "Liane_finland_2"  ~ "Liane",
+                                 study == "Liane_russia"  ~ "Liane",
+                                 study == "Liane_sweden"  ~ "Liane",
+                                 study == "Frenette2009" ~ "Frenette",
+                                 study == "Frenette2010" ~ "Frenette",
+                                 TRUE ~ study))
+
+plot_count <- temp %>%
+  group_by(study) %>% 
+  tally()
+#library(lme4)
+# Make a linear mixed model
+model <- lmer(log(dif) ~ mean_dist + (1 | study_group), data = temp)
+  
+# Calculate marginal and conditional R-squared
+r_squared <- r.squaredGLMM(model)
+
+temp$F0 <- predictSE(model, temp, level = 0)$fit
+temp$SE <- predictSE(model, temp, level = 0)$se.fit
+
+
+ggplot(temp, aes(x = (mean_dist), y = log(dif))) +
+  geom_point(alpha = 0.3, aes(colour = study)) +
+  theme_classic() +
+  #geom_smooth(method = "lm", se = T) + 
+  labs(y = "Log of the difference in model fit (m) - (m,t)", x = "Mean Bray-Curtis index",
+       title = "The difference in model fit and the structural difference between the plot of interest and the meta-community") +
+  labs(col = "Dataset") +
+ # stat_cor( aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), 
+     #       label.y = 0.25, label.x = 0.52,
+      #      method = "pearson",label.sep = "\n", size = 4) +
+  theme(legend.position = "bottom") +
+  guides(color = guide_legend(nrow = 3)) + 
+  geom_ribbon(aes( ymin = (F0 - 1.96 * SE), ymax = (F0 + 1.96 * SE)), 
+              alpha = 0.2, linetype= 1, size=0.5) +
+  geom_line(aes(y=(F0)), size=1, colour = "Black") +
+  theme(axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        plot.title = element_text(size=15)) +
+  # Add annotations for fixed effects estimates
+  ggplot2::annotate("text", x = 0.51, y = -9, 
+                    label = paste("Estimate for the Mean Bray-Curtis index:", round(fixef(model)["mean_dist"], 3)), color = "black", hjust = 0) +
+  ggplot2::annotate("text", x = 0.51, y = -9.40, 
+                    label = paste("Standard Error:", round(sqrt(diag(vcov(model))["mean_dist"]), 3)), color = "black", hjust = 0) +
+  ggplot2::annotate("text", x = 0.51, y = -9.80, 
+                    label = paste("t-value:", round(summary(model)$coefficients["mean_dist", "t value"], 3)), color = "black", hjust = 0) +
+  ggplot2::annotate("text", x = 0.51, y = -10.20, 
+                    label = paste("R²m:", round(r_squared[1], 3)), color = "black", hjust = 0) +
+  ggplot2::annotate("text", x = 0.51, y = -10.60, 
+                   label = paste("R²c:", round(r_squared[2], 3)), color = "black", hjust = 0) +
+  scale_colour_discrete(labels = paste0(plot_count$study, " (", plot_count$n, ")"))
+ 
+```
+
+```{r raw model output - all plots and only signif}
+#library(lme4)
+cats_species <- plot_cats4_function("Orig", "Try", "CATS at species level with original and TRY trait values",
+                                    "KLR2 with original data", "KLR2 with TRY data",
+                                    difference = "No")
+cats_genus <- plot_cats4_function("Orig_genus", "Try_genus", "CATS at genus level with original and TRY trait values",
+                                  "KLR2 with original data", "KLR2 with TRY data",
+                                    difference = "No")
+
+cats_speciesgenus <- plot_cats4_function("Orig", "Orig_genus", "CATS at species and genus level",
+                                         "KLR2 at species level", "KLR2 at genus level",
+                                    difference = "No")
+
+cats_difference <- plot_cats4_function("Orig", "Try", "The difference in fit per study (u,t) model",
+                                       x_lab = NULL, y_lab = "Difference in KLR2 (Original - TRY)",
+                                       difference = "Yes")
+
+png("Figures/Main_cats_try_original_specieslvl.png",  width = 3000, height = 2300, units = "px", res = 300)
+plot(cats_species)
+dev.off()
+
+png("Figures/Supp_cats_try_original_genuslvl.png",  width = 3000, height = 2300, units = "px", res = 300)
+plot(cats_genus)
+dev.off()
+
+
+
+cats_species
+cats_genus
+cats_speciesgenus
+cats_difference
+
+```
+
+```{r signif overlap}
+
+signif <- temp_raw_plot %>%
+  filter(traits %in% c("Orig")) %>%
+  filter(pval.uniform < 0.05) %>%
+  filter(Model_type == "raw_trait") %>%
+  mutate(signif_orig = "Yes") %>%
+  select(fit, plot_study, signif_orig) 
+
+
+signif_try <- temp_raw_plot %>%
+  filter(traits %in% c("Try")) %>%
+  filter(pval.uniform < 0.05) %>%
+  filter(Model_type == "raw_trait") %>%
+  mutate(signif_try = "Yes") %>%
+  select(fit, plot_study, signif_try) %>%
+  rename(fit_try = fit)
+
+signif_temp <- temp_raw_plot %>%
+  filter(traits %in% c("Orig", "Try")) %>%
+  filter(plot_study %in% signif$plot_study) %>%
+ #filter(Model_type %notin% c("trait_minus_bias", "raw_meta_trait_uncor"))  %>%
+  mutate(signif_orig = "Yes") %>%
+  select(fit, plot_study, signif_orig, traits, study,Model_type, study_group) 
+
+signif_both <- temp_raw_plot %>%
+  filter(traits %in% c("Orig", "Try")) %>%
+  filter(plot_study %in% signif_try$plot_study) %>%
+  #filter(Model_type %notin% c("trait_minus_bias", "raw_meta_trait_uncor"))  %>%
+  mutate(signif_try = "Yes") %>%
+  select(fit, plot_study, signif_try, traits, study,Model_type, study_group) %>%
+  full_join(signif_temp) %>%
+  mutate_all(~ ifelse(is.na(.), "No", .)) %>%
+  pivot_wider(names_from = "traits", values_from = "fit") %>%
+  mutate(signif_cat = case_when(signif_orig == "Yes" & signif_try == "No" ~ "Only with original data",
+                                signif_orig == "No" & signif_try == "Yes" ~ "Only with TRY data",
+                                signif_orig == "Yes" & signif_try == "Yes" ~ "With both")) %>%
+  mutate(Model_type = recode(Model_type, model.bias = "Estimate of model bias (u)", raw_meta = "Metacommunity (m)",
+                         raw_meta_trait = "Metacommunity and traits (m,t)", raw_trait = "Traits (u,t)",
+                         trait_minus_bias = "Explanatory power of traits beyond model bias")) 
+
+
+test <- plot_function("Traits (u,t)", "Explanatory power of traits (u,t) at species level with original and TRY trait values - significant plots")
+test2 <- plot_function("Explanatory power of traits beyond model bias", "Explanatory power of traits beyond model bias (u,t) - (u) at species level with original and TRY trait values - significant plots")
+
+test
+test2
+```
+
+```{r signif plots boxplots}
+boxplot <- plot_boxplot("trait_minus_bias", "The fit of the CATS model at species level with original and try trait values | only significant plots | (u,t) - (u)")
+
+boxplot
+
+
+```
+
+
+# A comparison of the pure trait effect original vs. try for only the plots that are significant
+```{r try vs. original t-test}
+cats <- temp_raw_plot %>%
+  filter(traits == "Orig") %>%
+ # filter(Model_type %notin% c("trait_minus_bias", "raw_meta_trait_uncor")) %>%
+  select(-c(FEve, FRic, qual.FRic, RaoQ, traits)) %>%
+  distinct()
+
+cats_both <- temp_raw_plot %>%
+  filter(traits == "Try") %>%
+ # filter(Model_type %notin% c("trait_minus_bias", "raw_meta_trait_uncor")) %>%
+  select(-c(FEve, FRic, qual.FRic, RaoQ, traits)) %>%
+  rename(fit_try = fit, pval.uniform_try = pval.uniform, FDiv_try = FDiv) %>%
+  distinct() %>%
+  full_join(cats) %>%
+  mutate(dif_fit = fit - fit_try, 
+         dif_FDiv = FDiv - FDiv_try,
+         plot_study = paste(Plot_code, study))
+
+signif <- temp_raw_plot %>%
+  filter(traits %in% c("Orig")) %>%
+  filter(pval.uniform < 0.05) 
+
+length(unique(signif$plot_study)) #123
+
+
+cats_compare <- temp_raw_plot %>%
+  filter(traits %in% c("Try",  "Orig")) %>%
+  filter(plot_study %in% signif$plot_study) %>%
+  select(c(study, Plot_code, Model_type, fit, traits)) %>%
+  filter(Model_type == "trait_minus_bias") %>%
+  mutate(traits = recode(traits, Orig = "Original", Try = "TRY database")) %>%
+ mutate(traits = recode(traits, Orig_genus = "Original", Try_genus = "TRY database")) %>%
+
+
+plot_count <- cats_compare %>% 
+  group_by(study_group) %>% 
+  tally() %>%
+  mutate(n = n/2)
+
+stat.test <- cats_compare %>%
+    full_join(plot_count) %>%
+  mutate(study_group_n = paste0(study_group, " (", n, ")")) %>%
+   group_by(study_group_n) %>%
+   filter(n() >2) %>%
+  pairwise_t_test(
+    fit ~ traits, paired = TRUE, detailed = T) %>%
+    adjust_pvalue(method = "bonferroni") %>%
+add_significance("p.adj") %>%
+  select(-df,  -method, -alternative, ) 
+
+extra <- data.frame(study_group_n = "Eallonardo (1)",
+                    estimate = (0.224295443 - 0.265987219))
+
+levels_vector <- stat.test %>%
+  bind_rows(extra) %>%
+  arrange(-estimate) %>%
+  pull(study_group_n) %>%
+  unique()
+
+cats_compare <- cats_compare %>%
+  full_join(plot_count) %>%
+  mutate(study_group_n = paste0(study_group, " (", n, ")")) %>%
+  mutate(study_group_n = factor(study_group_n, levels = levels_vector, ordered = TRUE)) #%>%
+  #filter(study_group_n %in% stat.test$study_group_n) 
+  
+
+ggplot(cats_compare, aes(x = study_group_n, y = fit)) +
+  geom_boxplot(aes(fill = traits)) +
+  labs(title = "Explanatory power of traits beyond model bias (u,t) - (u) at species level with original and TRY trait values - significant plots",
+       x = NULL,
+       y = "KLR2",
+       fill = "Source trait values") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13),
+        legend.position = "bottom") +
+    stat_pvalue_manual(stat.test, label = "p.adj.signif", x = "study_group_n",
+                     step.increase = 0.08, hide.ns = TRUE, tip.length = 2,
+                     y.position = 1.1) +
+   theme(axis.text = element_text(size = 13),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 13),
+        axis.title = element_text(size = 13),
+        plot.title = element_text(size=15)) 
+  
+homogeneity_test <- cats_compare %>%
+  convert_as_factor(traits, study, Plot_code) %>%
+ # filter(Model_type == "raw_meta_trait") %>%
+  select(-Model_type) %>%
+  group_by(study) %>%
+   summarise(
+    levene_p = leveneTest(fit ~ traits)[1,3])
+
+# Difference in fit related to differences in other stuff
+
+orig_try_dif <- function(variable, variable_dif){
+  cats_compare <- temp_raw_plot %>%
+      filter(traits %in% c("Try",  "Orig")) %>%
+      filter(plot_study %in% signif$plot_study) %>%
+      select(c(study, Plot_code, Model_type, {{variable}}, traits,
+               mean_dist, species_richness, meta_size)) %>%
+      filter(Model_type == "trait_minus_bias") %>%
+      mutate(traits = recode(traits, Orig = "Original", Try = "TRY database")) %>%
+      pivot_wider(values_from = {{variable}}, names_from = traits) %>%
+      mutate({{variable_dif}} := Original - `TRY database`) %>%
+    select(-Original, -`TRY database`)
+}
+
+fit <- orig_try_dif(fit, Fit_div)
+FDiv <- orig_try_dif(FDiv, FDiv_div)
+FEve <- orig_try_dif(FEve, FEve_div)
+
+div_all <- lst(fit, FDiv, FEve, cwm_df, cwv_df, traits_n_plot) %>% reduce(full_join) %>%
+          mutate(plot_study = paste(Plot_code, study)) %>%
+          filter(plot_study %in% signif$plot_study) %>%
+  mutate(meta_traits_ratio = meta_size/traits_n) %>%
+  mutate(cube_root_cwv_dif = ifelse(cwv_dif >= 0, cwv_dif^(1/3), -(-cwv_dif)^(1/3)),
+         cube_root_cwm_dif = ifelse(cwm_dif >= 0, cwm_dif^(1/3), -(-cwm_dif)^(1/3))) %>%
+  mutate(study_group = case_when(study_group == "kober" ~ "Kober",
+                                 TRUE ~ study_group)) 
+
+
+
+model <- lmer((Fit_div) ~  (cube_root_cwv_dif) + (1|study_group), data = div_all)
+summary(model)
+
+ggplot(div_all, aes(y = (Fit_div),x  = cwm_dif)) +
+  geom_point(alpha = 1, aes(colour = study_group)) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = T) + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Original trait values",  
+      ) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(y= "Difference in KLR2 (Original - TRY)", x = "Cube root of difference in CWV")
+  scale_y_continuous(breaks = c(-0.4, -0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) + labs(col = "Dataset", shape = "Habitat type")
+
+library(corrplot)                                
+ 
+
+# Select only numerical variables from the dataframe
+numerical_df <- div_all %>% select_if(is.numeric)
+
+# Create the correlation matrix, ignoring NA values
+correlation_matrix <- cor(numerical_df, use = "pairwise.complete.obs")
+
+# Plot the correlation matrix using corrplot
+corrplot(correlation_matrix, method = "color", type = "upper", order = "hclust",
+         tl.col = "black", tl.srt = 45, addCoef.col = "black")
+
+cwv <- plot_dif_function(variable = cube_root_cwv_dif,
+                  plot_title = "The difference in fit (u,t) - (u) vs. difference in CWV - significant plots", x_lab = "Cube root of the difference in CWV", df = div_all)
+
+species <- plot_dif_function(variable = species_richness,
+                  plot_title = "The difference in fit (u,t) - (u) vs. species richness - significant plots", x_lab = "Species richness", df = div_all)
+
+cwv
+species
+```
+
+
+
+
+
+```{r other stuff maybe remove}
+test_fdiv_signif <- temp_raw_plot %>%
+  filter(traits == "Orig") %>%
+ # filter(Model_type %notin% c("trait_minus_bias", "raw_meta_trait_uncor")) %>%
+  mutate(plot_study = paste(Plot_code, study)) %>%
+  filter(plot_study %in% signif$plot_study) 
+
+
+test_fdiv_signif <- temp_raw_plot %>%
+  filter(traits == "Orig") %>%
+ # filter(Model_type %notin% c("trait_minus_bias", "raw_meta_trait_uncor")) %>%
+  mutate(plot_study = paste(Plot_code, study),
+         signif = "Yes") %>%
+  filter(plot_study %in% signif$plot_study) %>%
+  select(FDiv, plot_study) %>%
+  distinct() # REMOVE STUDIES 
+
+test_fdiv_signif <- temp_raw_plot %>%
+  filter(traits == "Orig") %>%
+   mutate(signif = case_when(pval.uniform < 0.05  ~ "Yes (116)",
+                             pval.uniform >= 0.05  ~ "No (622)")) %>%
+  mutate(plot_study = paste(Plot_code, study)) %>%
+  select(FDiv, study, Plot_code, signif, plot_study) %>%
+  distinct() %>% drop_na()
+
+temp <- temp_raw_plot %>%
+  filter(traits == "Orig_genus") %>%
+  mutate(plot_study = paste(Plot_code, study)) 
+
+length(unique(temp$plot_study))
+
+stat.test <- test_fdiv_signif %>%
+  pairwise_t_test(
+    FDiv ~ signif, paired = F, detailed = T)
+
+ggplot(test_fdiv_signif, aes(x = signif, y = FDiv)) +
+  geom_boxplot(aes(fill = signif)) +
+  labs(title = "Functional divergence - significant vs. non significant plots",
+       x = NULL,
+       y = "Functional divergence",
+       fill = "Significant effect of trait-based filtering:") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "none") +
+       theme(axis.text = element_text(size = 13),
+        legend.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        plot.title = element_text(size=15)) +
+  stat_pvalue_manual(stat.test, label = "p", tip.length =0.01,
+                     y.position = 1.1)
+
+
+
+  
+```
+
+
+# A comparison of the pure trait effect original vs. try for only the plots that are significant
+```{r sdf try vs. original t-test - significant according to TRY}
+
+signif_try <- temp_raw_plot %>%
+  filter(traits %in% c("Try")) %>%
+  filter(pval.uniform < 0.05) %>%
+  mutate(plot_study = paste(Plot_code, study))
+
+length(unique(signif$plot_study)) #103
+
+test <- signif_try %>%
+  filter(plot_study %in% signif$plot_study)
+
+length(unique(test$plot_study)) #36
+  
+
+cats_compare <- temp_raw_plot %>%
+  filter(traits %in% c("Try",  "Orig")) %>%
+  mutate(plot_study = paste(Plot_code, study)) %>%
+  filter(plot_study %in% signif$plot_study) %>%
+  select(c(study, Plot_code, Model_type, fit, traits)) %>%
+  filter(Model_type == "trait_minus_bias") %>%
+  filter(study %notin% c("Aiello1992", "Aiello2011" , "Asefa", "Osuri")) %>%
+  mutate(traits = recode(traits, Orig = "Original", Try = "TRY database")) %>%
+ mutate(traits = recode(traits, Orig_genus = "Original", Try_genus = "TRY database")) %>%
+  mutate(study_group = case_when(study == "Liane_finland_1"  ~ "Liane",
+                                 study == "Liane_finland_2"  ~ "Liane",
+                                 study == "Liane_russia"  ~ "Liane",
+                                 study == "Liane_sweden"  ~ "Liane",
+                                 study == "Frenette2009" ~ "Frennette",
+                                 study == "Frenette2010" ~ "Frennette",
+                                 TRUE ~ study))
+
+plot_count <- cats_compare %>% 
+  group_by(study_group) %>% 
+  tally() %>%
+  mutate(n = n/2)
+
+stat.test <- cats_compare %>%
+    full_join(plot_count) %>%
+  mutate(study_group_n = paste0(study_group, " (", n, ")")) %>%
+   group_by(study_group_n) %>%
+   filter(n() >2) %>%
+  pairwise_t_test(
+    fit ~ traits, paired = TRUE, detailed = T) %>%
+    adjust_pvalue(method = "bonferroni") %>%
+add_significance("p.adj") %>%
+  select(-df,  -method, -alternative, ) 
+
+levels_vector <- stat.test %>%
+  arrange(estimate) %>%
+  pull(study_group_n) %>%
+  unique()
+
+cats_compare <- cats_compare %>%
+  full_join(plot_count) %>%
+  mutate(study_group_n = paste0(study_group, " (", n, ")")) %>%
+  mutate(study_group_n = factor(study_group_n, levels = levels_vector, ordered = TRUE)) %>%
+  filter(study_group_n %in% stat.test$study_group_n) 
+  
+
+ggplot(cats_compare, aes(x = study_group_n, y = fit)) +
+  geom_boxplot(aes(fill = traits)) +
+  labs(title = "The fit of the CATS model at species level with original and try trait values | only significant TRY plots | (u,t) - (u)",
+       x = NULL,
+       y = "KLR2",
+       fill = "Source trait values") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13),
+        legend.position = "bottom") +
+    stat_pvalue_manual(stat.test, label = "p.adj.signif", x = "study_group_n",
+                     step.increase = 0.08, hide.ns = TRUE, tip.length = 2,
+                     y.position = 1.1) +
+   theme(axis.text = element_text(size = 13),
+        legend.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        plot.title = element_text(size=15)) 
+  
+homogeneity_test <- cats_compare %>%
+  convert_as_factor(traits, study, Plot_code) %>%
+ # filter(Model_type == "raw_meta_trait") %>%
+  select(-Model_type) %>%
+  group_by(study) %>%
+   summarise(
+    levene_p = leveneTest(fit ~ traits)[1,3])
+
+
+all_plots <- temp_raw_plot %>%
+  mutate(plot_study = paste(Plot_code, study)) %>%
+  select(plot_study) %>%
+  distinct()
+
+679*0.05
+
+```
+
+# A comparison of CWM and CWV original vs. TRY data
+```{r community weighted variance}
+cwv_df <- cwm_df <- data.frame()
+
+for(i in 1:length(output_list)){
+  
+cwv_orig <- output_list[[i]][["prep_orig"]][["calculations_cwm_cwv"]] %>%
+   select("Plot_code", ends_with("_cwv")) %>%
+  pivot_longer(cols = 2:ncol(.), names_to = "Trait", values_to = "cwv") %>%
+  group_by(Plot_code) %>%
+  summarize(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  mutate(study = output_list[[i]][["cats_orig"]]$study) %>%
+  mutate(traits = "Orig")
+
+cwv_try <- output_list[[i]][["prep_try"]][["calculations_cwm_cwv"]] %>%
+   select("Plot_code", ends_with("_cwv")) %>%
+  pivot_longer(cols = 2:ncol(.), names_to = "Trait", values_to = "cwv") %>%
+  group_by(Plot_code) %>%
+  summarize(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  mutate(study = output_list[[i]][["cats_orig"]]$study) %>%
+  mutate(traits = "Try")
+
+
+cwv_df <- bind_rows(cwv_orig, cwv_try, cwv_df)
+
+cwm_orig <- output_list[[i]][["prep_orig"]][["calculations_cwm_cwv"]] %>%
+   select("Plot_code", ends_with("_cwv")) %>%
+  pivot_longer(cols = 2:ncol(.), names_to = "Trait", values_to = "cwv") %>%
+  group_by(Plot_code) %>%
+  summarize(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  mutate(study = output_list[[i]][["cats_orig"]]$study) %>%
+  mutate(traits = "Orig")
+
+cwm_try <- output_list[[i]][["prep_try"]][["calculations_cwm_cwv"]] %>%
+   select("Plot_code", ends_with("_cwm")) %>%
+  pivot_longer(cols = 2:ncol(.), names_to = "Trait", values_to = "cwv") %>%
+  group_by(Plot_code) %>%
+  summarize(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  mutate(study = output_list[[i]][["cats_orig"]]$study) %>%
+  mutate(traits = "Try")
+
+
+cwm_df <- bind_rows(cwm_orig, cwm_try, cwm_df)
+
+
+
+}
+
+cwv_df <- cwv_df %>%
+  mutate(plot_study = paste0(Plot_code, study)) %>%
+  mutate(study_group = case_when(study == "Liane_finland_1"  ~ "Liane",
+                                 study == "Liane_finland_2"  ~ "Liane",
+                                 study == "Liane_russia"  ~ "Liane",
+                                 study == "Liane_sweden"  ~ "Liane",
+                                 study == "Frenette2009" ~ "Frennette",
+                                 study == "Frenette2010" ~ "Frennette",
+                                 TRUE ~ study)) %>%
+    filter(study %notin% c("Aiello1992", "Aiello2011" , "Asefa", "Osuri")) %>%
+  mutate(traits = recode(traits, Orig = "Original", Try = "TRY database"))  %>%
+  pivot_wider(values_from = cwv, names_from = traits) %>%
+      mutate(cwv_dif = Original - `TRY database`) %>%
+    select(-Original, -`TRY database`)
+
+cwm_df <- cwm_df %>%
+  mutate(plot_study = paste0(Plot_code, study)) %>%
+  mutate(study_group = case_when(study == "Liane_finland_1"  ~ "Liane",
+                                 study == "Liane_finland_2"  ~ "Liane",
+                                 study == "Liane_russia"  ~ "Liane",
+                                 study == "Liane_sweden"  ~ "Liane",
+                                 study == "Frenette2009" ~ "Frennette",
+                                 study == "Frenette2010" ~ "Frennette",
+                                 TRUE ~ study)) %>%
+    filter(study %notin% c("Aiello1992", "Aiello2011" , "Asefa", "Osuri")) %>%
+  mutate(traits = recode(traits, Orig = "Original", Try = "TRY database"))  %>%
+  pivot_wider(values_from = cwv, names_from = traits) %>%
+      mutate(cwm_dif = Original - `TRY database`) %>%
+    select(-Original, -`TRY database`)
+
+
+
+
+length(unique(cwv_df$plot_study))
+
+plot_count <- cwv_df %>% 
+  group_by(study_group) %>% 
+  tally() 
+
+
+stat.test <- cwv_df %>%
+    full_join(plot_count) %>%
+  mutate(study_group_n = paste0(study_group, " (", n, ")")) %>%
+   group_by(study_group_n) %>%
+  pairwise_t_test(
+    cwv ~ traits, paired = TRUE, detailed = T) %>%
+    adjust_pvalue(method = "bonferroni") %>%
+add_significance("p.adj") %>%
+  select(-df,  -method, -alternative, ) 
+
+
+levels_vector <- stat.test %>%
+  arrange(-estimate) %>%
+  pull(study_group_n) %>%
+  unique()
+
+cwv_df <- cwv_df %>%
+  full_join(plot_count) %>%
+  mutate(study_group_n = paste0(study_group, " (", n, ")")) %>%
+  mutate(study_group_n = factor(study_group_n, levels = levels_vector, ordered = TRUE)) %>%
+  filter(study_group_n %in% stat.test$study_group_n) %>%
+  mutate(traits = recode(traits, Orig = "Original", Try = "TRY database")) 
+
+ggplot(cwv_df, aes(x = study_group_n, y = cwv)) +
+  geom_boxplot(aes(fill = traits)) +
+  labs(title = "Mean community weighted mean - original and TRY trait values",
+       x = NULL,
+       y = "Mean CWM",
+       fill = "Source trait values:") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+        legend.position = "bottom") +
+       theme(axis.text = element_text(size = 13),
+        legend.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        plot.title = element_text(size=15)) +
+ stat_pvalue_manual(stat.test, label = "p.adj.signif", x = "study_group_n",
+                     step.increase = 0.08, hide.ns = TRUE, tip.length = 2,
+                     y.position = 1.8)
+
+
+```
+
+
+```{r deviance}
+
+deviance <- temp_raw_plot %>%
+  filter(traits %in% c("Try",  "Orig")) %>%
+  select(c(study, Plot_code, FDiv, traits)) %>%
+  distinct() %>%
+  filter(study %notin% c("Aiello1992", "Aiello2011" , "Asefa", "Osuri")) %>%
+  mutate(traits = recode(traits, Orig = "Original", Try = "TRY database")) %>%
+ mutate(traits = recode(traits, Orig_genus = "Original", Try_genus = "TRY database")) %>%
+  mutate(study_group = case_when(study == "Liane_finland_1"  ~ "Liane",
+                                 study == "Liane_finland_2"  ~ "Liane",
+                                 study == "Liane_russia"  ~ "Liane",
+                                 study == "Liane_sweden"  ~ "Liane",
+                                 study == "Frenette2009" ~ "Frennette",
+                                 study == "Frenette2010" ~ "Frennette",
+                                 TRUE ~ study))
+
+plot_count <- deviance %>% 
+  group_by(study_group) %>% 
+  tally() 
+
+stat.test <- deviance %>%
+    full_join(plot_count) %>%
+  mutate(study_group_n = paste0(study_group, " (", n, ")")) %>%
+   group_by(study_group_n) %>%
+  pairwise_t_test(
+    FDiv ~ traits, paired = TRUE, detailed = T) %>%
+    adjust_pvalue(method = "bonferroni") %>%
+add_significance("p.adj") %>%
+  select(-df,  -method, -alternative, ) 
+
+levels_vector <- stat.test %>%
+  arrange(-estimate) %>%
+  pull(study_group_n) %>%
+  unique()
+
+deviance <- deviance %>%
+  full_join(plot_count) %>%
+  mutate(study_group_n = paste0(study_group, " (", n, ")")) %>%
+  mutate(study_group_n = factor(study_group_n, levels = levels_vector, ordered = TRUE)) %>%
+  filter(study_group_n %in% stat.test$study_group_n) 
+  
+
+ggplot(deviance, aes(x = study_group_n, y = FDiv)) +
+  geom_boxplot(aes(fill = traits)) +
+  labs(title = "Functional divergence",
+       x = NULL,
+       y = "Functional divergence",
+       fill = "Source trait values") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13),
+        legend.position = "bottom") +
+    stat_pvalue_manual(stat.test, label = "p.adj.signif", x = "study_group_n",
+                     step.increase = 0.08, hide.ns = TRUE, tip.length = 2,
+                     y.position = 1.1) +
+   theme(axis.text = element_text(size = 13),
+        legend.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        plot.title = element_text(size=15)) 
+  
+
+```
+
+```{r visualisation}
+temp_traits_n <- temp_bias2 %>% 
+  select(model.bias, study, meta_size) %>%
+  group_by(study, meta_size) %>%
+  summarise(model.bias.mean = mean(model.bias),
+            sd.bias = sd(model.bias)) %>%
+  ungroup() %>%
+  distinct() %>%
+  full_join(traits_n2) %>%
+  mutate(states_traits = meta_size/traits_n)
+
+
+
+
+trait_neg <- temp_fig_plot %>%
+  filter(traits == "Orig") %>%
+  filter(Deviance == "Pure trait effect" ) %>%
+  filter(KLR2 < 0) %>%
+  mutate(plot_study = paste(Plot_code, study))
+
+hist(trait_neg$pval.uniform)
+
+cats <- temp_fig_plot %>%
+  filter(traits == "Orig") %>%
+  mutate(plot_study = paste(Plot_code, study)) 
+
+
+ggplot(cats, aes(x = species_richness, y = KLR2)) +
+  geom_point(alpha = 0.3, aes(colour = study)) +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "loess", se = T) + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Original trait values",  
+       x = "Local species richness") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.4, 1), xlim = c(0, 60)) +
+  scale_y_continuous(breaks = c(-0.4, -0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) + labs(col = "Dataset", shape = "Habitat type")
+
+cats <- temp_raw_plot %>%
+  filter(traits == "Orig") %>%
+  filter(Model_type != "trait_minus_bias") %>%
+  select(-c(FEve, FRic, qual.FRic, RaoQ, traits)) %>%
+  distinct()
+
+cats_both <- temp_raw_plot %>%
+  filter(traits == "Try") %>%
+  filter(Model_type != "trait_minus_bias") %>%
+  select(-c(FEve, FRic, qual.FRic, RaoQ, traits)) %>%
+  rename(fit_try = fit, pval.uniform_try = pval.uniform, FDiv_try = FDiv) %>%
+  distinct() %>%
+  full_join(cats) %>%
+  mutate(dif_fit = fit - fit_try, 
+         dif_FDiv = FDiv - FDiv_try) 
+
+signif <- temp_raw_plot %>%
+  filter(traits %in% c("Orig")) %>%
+  filter(pval.uniform < 0.05)
+
+cats_compare <- temp_raw_plot %>%
+  filter(traits %in% c("Try",  "Orig")) %>%
+  filter(Plot_code %in% signif$Plot_code) %>%
+  select(c(study, Plot_code, Model_type, fit, traits)) %>%
+  filter(Model_type == "trait_minus_bias") %>%
+  filter(study %notin% c("Aiello1992", "Aiello2011" , "Asefa", "Osuri")) %>%
+  mutate(traits = recode(traits, Orig = "Original", Try = "TRY database")) %>%
+ mutate(traits = recode(traits, Orig_genus = "Original", Try_genus = "TRY database"))
+
+stat.test <- cats_compare %>%
+   group_by(study) %>%
+   filter(n() >2) %>%
+  pairwise_t_test(
+    fit ~ traits, paired = TRUE, detailed = T) %>%
+    adjust_pvalue(method = "bonferroni") %>%
+add_significance("p.adj") %>%
+  select(-df,  -method, -alternative, ) 
+
+ggplot(cats_compare, aes(x = study, y = fit)) +
+   geom_boxplot(aes(fill = traits)) +
+  labs(title = "The fit of the CATS model at species level with original and try trait values | only significant plots | (u,t) - (u)",
+       x = NULL,
+       y = "Fit") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) +
+  stat_pvalue_manual(stat.test, label = "p.adj.signif",  x = "study",
+                     step.increase = 0.08, hide.ns = TRUE, tip.length = 2,
+                     y.position = 1.1 ) +
+  labs(fill = "Source trait values") +
+  theme(legend.position = "bottom") 
+  
+homogeneity_test <- cats_compare %>%
+  convert_as_factor(traits, study, Plot_code) %>%
+ # filter(Model_type == "raw_meta_trait") %>%
+  select(-Model_type) %>%
+  group_by(study) %>%
+   summarise(
+    levene_p = leveneTest(fit ~ traits)[1,3])
+
+cats_genus <- temp_raw_plot %>%
+  filter(traits == "Orig_genus") %>%
+  filter(Model_type != "trait_minus_bias") %>%
+  select(-c(FEve, FRic, qual.FRic, RaoQ, traits)) %>%
+  distinct()
+
+cats_genus_both <- temp_raw_plot %>%
+  filter(traits == "Try_genus") %>%
+  filter(Model_type != "trait_minus_bias") %>%
+  select(-c(FEve, FRic, qual.FRic, RaoQ, traits)) %>%
+  rename(fit_try = fit, pval.uniform_try = pval.uniform, FDiv_try = FDiv) %>%
+  distinct() %>%
+  full_join(cats_genus) %>%
+  mutate(dif_fit = fit - fit_try, 
+         dif_FDiv = FDiv - FDiv_try)
+
+cats <- temp_fig_plot %>%
+  filter(traits == "Orig") %>%
+  select(Deviance, KLR2, study, Plot_code, pval.meta) %>%
+  distinct()
+
+cats_both <- temp_fig_plot %>%
+  filter(traits == "Try") %>%
+  select(Deviance, KLR2, study, Plot_code, pval.meta) %>%
+  rename(KLR2_try = KLR2, pval.meta_try = pval.meta) %>%
+  distinct() %>%
+  full_join(cats) %>%
+  mutate(dif_KLR2 = KLR2 - KLR2_try) %>%
+  select(-pval.meta_try, -pval.meta, -dif_KLR2) %>%
+  relocate(Deviance, study, Plot_code) %>%
+  pivot_longer(cols = 4:5, values_to = "KLR2", names_to = "traits") %>%
+  filter(Deviance == "Pure trait effect") %>%
+  filter(Plot_code %notin% signif$Plot_code) %>%
+    filter(study %notin% c("Aiello1992", "Aiello2011" , "Asefa", "Osuri")) %>%
+  mutate(traits = recode(traits, KLR2 = "Original", KLR2_try = "TRY database"))
+
+stat.test <- cats_both %>%
+    filter(Deviance == "Pure trait effect") %>%
+   group_by(study) %>%
+  filter(n() >2) %>%
+  pairwise_t_test(
+    KLR2 ~ traits, paired = TRUE, detailed = T) %>%
+    adjust_pvalue(method = "bonferroni") %>%
+add_significance("p.adj") %>%
+  select(-df,  -method, -alternative, ) #
+
+ggplot(cats_both, aes(x = study, y = KLR2)) +
+   geom_boxplot(aes(fill = traits)) +
+  labs(title = "CATS at species level with original and TRY trait values - pure trait effect - only significant plots",
+       x = NULL,
+       y = "KLR2") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) +
+  stat_pvalue_manual(stat.test, label = "p.adj.signif",  x = "study",
+                     step.increase = 0.08, hide.ns = TRUE, tip.length = 2,
+                     y.position = 1.1 ) +
+  labs(fill = "Source trait values") +
+  theme(legend.position = "bottom") 
+
+
+cats_fit_div <- cats_both %>%
+  select(Plot_code, study, dif_fit, Model_type) 
+
+cats_fit_div_both <- cats_genus_both %>%
+  select(Plot_code, study, dif_fit, Model_type) %>%
+  rename(dif_fit_genus = dif_fit) %>%
+  full_join(cats_fit_div) %>%
+  relocate(Model_type) %>%
+  drop_na() %>%
+  pivot_longer(cols = 4:5, values_to = "fit_div", names_to = "tax_lvl") %>%
+  filter(Model_type %in% c("raw_meta_trait", "raw_trait")) %>%
+  filter(study %notin% c("Aiello1992", "Aiello2011" , "Asefa", "Osuri")) %>%
+  mutate(tax_lvl = recode(tax_lvl, dif_fit = "Species level",
+                          dif_fit_genus = "Genus level")) %>%
+  mutate(tax_lvl = factor(tax_lvl, levels = c("Species level", "Genus level"))) 
+  mutate(ratio_fit = dif_fit/dif_fit_genus) 
+
+  stat.test <- cats_fit_div_both %>%
+    filter(Model_type == "raw_meta_trait") %>%
+   group_by(study) %>%
+  pairwise_t_test(
+    fit_div ~ tax_lvl, paired = TRUE, detailed = T) %>%
+    adjust_pvalue(method = "bonferroni") %>%
+add_significance("p.adj") %>%
+  select(-df,  -method, -alternative, ) # Remove details
+
+
+homogeneity_test <- cats_fit_div_both %>%
+  convert_as_factor(tax_lvl, study, Plot_code) %>%
+  filter(Model_type == "raw_meta_trait") %>%
+  select(-Model_type) %>%
+  group_by(study) %>%
+   summarise(
+    levene_p = leveneTest(fit_div ~ tax_lvl)[1,3])
+
+cats_fit_div_both$study <- as.factor(cats_fit_div_both$study)
+
+
+
+
+cats_fit_div_both2 <- cats_fit_div_both %>%
+  filter(Model_type == "raw_meta_trait") 
+
+ggplot(cats_fit_div_both2, aes(x = study, y = fit_div)) +
+   geom_boxplot(aes(fill = tax_lvl)) +
+  labs(title = "The difference in fit per study and taxonomic level - (m,t) model",
+       x = NULL,
+       y = "Difference in fit") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) +
+  stat_pvalue_manual(stat.test, label = "p.adj.signif",  x = "study",
+                     step.increase = 0.08, hide.ns = TRUE, tip.length = 2,
+                     y.position = 0.8 ) +
+  labs(fill = "Taxonomic level") +
+  theme(legend.position = "bottom") 
+  
+
+
+ggplot(cats_fit_div_both, aes(x = dif_fit, y = dif_fit_genus)) +
+  geom_point(alpha = 0.3, aes(colour = study)) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = T) + 
+  labs(title = "Difference in fit at species and genus lvl",  
+      y = "dif_fit_genus", x = "dif_fit") +
+  labs(col = "Dataset") + facet_wrap(~Model_type) + 
+  geom_abline(intercept = 0, slope = 1, color = "black", linewidth = 1, linetype = 2)
+
+ggplot(cats_fit_div_both, aes(x = ratio_fit, colour = study)) + geom_boxplot() + 
+  facet_wrap(~Model_type, scales = "free") + theme_classic()
+
+
+ggplot(cats_both2, aes(x = dif_fit, y = mean_dist, colour = study))+
+  geom_point(alpha = 0.3, aes(colour = study)) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = F) + 
+  labs(title = "The relationship between species and genus richness",  
+      y = "dif_FDiv", x = "dif_fit") +
+  labs(col = "Dataset") + facet_wrap(~Model_type)
+
+install.packages("lme4", type = "source")
+library(lme4)
+
+model <- lmer((dif_fit) ~ (dif_FDiv) + mean_dist + (1|study), data = cats_both2)
+
+plot(model, which = 1)
+#Levene's test
+qqnorm(residuals(model))
+qqline(residuals(model))
+
+summary(model)
+
+
+random_effects <- ranef(model)$study[[1]]
+hist(random_effects, main = "Histogram of Random Effects")
+qqnorm(random_effects)
+qqline(random_effects)
+
+cats <- temp_fig_dataset %>%
+  filter(traits == "Orig") %>%
+  select(Deviance, KLR2, study, Plot_code, pval.meta) %>%
+  distinct()
+
+cats_both <- temp_fig_dataset %>%
+  filter(traits == "Try") %>%
+  select(Deviance, KLR2, study, Plot_code, pval.meta) %>%
+  rename(KLR2_try = KLR2, pval.meta_try = pval.meta) %>%
+  distinct() %>%
+  full_join(cats) 
+
+
+div <- diversity_plot  %>%
+  filter(traits == "orig") %>%
+  select(species_richness, FDiv, FEve, FRic, study, Plot_code) %>%
+  distinct()
+
+div_both <- diversity_plot  %>%
+  filter(traits == "try") %>%
+  select(species_richness, FDiv, FEve, FRic, study, Plot_code) %>%
+  rename(FDiv_try = FDiv, FEve_try = FEve, FRic_try = FRic) %>%
+  distinct() %>%
+  full_join(div) 
+
+colnames(diversity_plot)
+raw <- temp_raw_plot %>%
+  filter(traits == "Orig") %>%
+  filter(Model_type != "trait_minus_bias") %>%
+ # select(Model_type, fit, study, Plot_code) %>%
+  distinct()
+
+raw_both <- temp_raw_plot %>%
+  filter(traits == "Try") %>%
+    filter(Model_type != "trait_minus_bias") %>%
+  select(Model_type, fit, study, Plot_code) %>%
+  rename(fit_try = fit) %>%
+  distinct() %>%
+  full_join(raw) 
+
+raw_both$Model_type <- factor(raw_both$Model_type, levels = c("model.bias", "raw_trait", "raw_meta", "raw_meta_trait"))
+
+pvals <- cats_both %>%
+  select(pval.meta, pval.meta_TRY, study, Plot_code) %>%
+  distinct()
+
+
+ggplot(pvals, aes(x = pval.meta, y = pval.meta_TRY)) +
+  geom_point(alpha = 0.3, aes(colour = study)) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = T) + 
+  labs(title = "The relationship between species and genus richness",  
+      y = "CATS with TRY values", x = "CATS with original trait values") +
+  labs(col = "Dataset")+
+  geom_abline(intercept = 0, slope = 1, color = "black", size = 1, linetype = 2) +
+   geom_hline(yintercept = 0.05, linetype = 2, size = 0.8) +
+   geom_vline(xintercept = 0.05, linetype = 2, size = 0.8) 
+
+# - SAME VEGETATION MATRIX
+ggplot(cats_both, aes(x = KLR2, y = KLR2_try)) +
+  geom_point(alpha = 0.3, aes(colour = study)) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = T) + 
+  labs(title = "CATS at species level with orignal and TRY trait values",  
+       y = "CATS with TRY data", x = "CATS with original data") +
+  labs(col = "Dataset")+
+  geom_abline(intercept = 0, slope = 1, color = "black", linewidth = 1, linetype = 2) +
+  facet_wrap(~Deviance, scales = "free")
+
+ggplot(div_both, aes(x = FDiv, y = FDiv_try, colour = study)) +
+  geom_point(alpha = 0.3, aes(colour = study)) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = F) + 
+  labs(title = "Functional divergence, original vs. try data",  
+       y = "Functional divergence of TRY data", x = "Functional divergence of original data") +
+  labs(col = "Dataset")+
+  geom_abline(intercept = 0, slope = 1, color = "black", linewidth = 1, linetype = 2) 
+
+raw_both2 <- raw_both %>% 
+  #filter(pval.uniform < 0.05) %>%
+  filter(fit_try != 0)
+ggplot(raw_both, aes(x = fit, y = fit_try, colour = study)) +
+  geom_point(alpha = 0.3, aes(colour = study)) +
+  theme_classic() +
+  geom_smooth(method = "loess", se = F) + 
+  labs(title = "CATS at species level with orignal and TRY trait values, raw model output",  
+       y = "CATS with TRY data", x = "CATS with original data") +
+  labs(col = "Dataset")+
+  geom_abline(intercept = 0, slope = 1, color = "black", linewidth = 1, linetype = 2) +
+  facet_wrap(~Model_type, scales = "free")
+
+
+raw2 <- raw_both %>% filter(pval.uniform < 0.05)
+ggplot(raw2, aes(x = species_richness, y = fit, colour = pval.uniform)) +
+  geom_point(alpha = 0.3, aes(colour = pval.uniform)) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = T) + 
+  labs(title = "CATS at species level with orignal and TRY trait values, raw model output",  
+       y = "CATS with original data", x = "species richness") +
+  labs(col = "Dataset")
+
+
+ggplot(raw, aes(x = pval.uniform)) + geom_histogram()
+
+ggplot(richness_both, aes(x = FDiv, y = try_FDiv, 
+                          colour = study)) +
+  geom_point(alpha = 0.3) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = F) + 
+  labs(title = "Functional divergence - original values vs. TRY",  
+       x = "Original functional divergence", y = "Try functional divergence") +
+  labs(col = "Dataset")+
+  geom_abline(intercept = 0, slope = 1, color = "black", size = 1, linetype = 2)
+
+```
+
+
+```{r visualisation}
+
+
+ggplot(temp_bias, aes(x = species_richness, colour = study, y = model.bias)) +
+  geom_point(alpha = 0.3) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = F) + 
+  labs(title = "The relationship between species richness and model bias",  
+       x = "Species richness", y = "Model bias") +
+   coord_cartesian(ylim = c(0, 1), xlim = c(0, 60)) +
+  scale_y_continuous(breaks = c(-0.4, -0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) + labs(col = "Dataset")
+
+
+
+
+temp_fig_try <- temp_fig %>%
+  filter(traits == "Try_genus") %>%
+  select(species_richness, KLR2, Deviance, study, Plot_code) %>%
+  rename(KLR2_try = KLR2 )
+
+temp_fig_orig <- temp_fig %>%
+  filter(traits == "Orig_genus") %>%
+  select(species_richness, KLR2, Deviance, study, Plot_code) %>%
+  rename(KLR2_orig = KLR2      ) %>%
+  inner_join(temp_fig_try)
+
+ggplot(temp_fig_orig, aes(KLR2_orig, KLR2_try,  colour = study)) +
+  geom_point(alpha = 0.3) +
+   facet_wrap(~Deviance, scales = "free") + 
+  theme_classic() +
+  geom_smooth(method = "lm", se = F)  +
+    geom_hline(yintercept = 0, linetype = 2) +
+   #coord_cartesian(ylim = c(-0.4, 1), ) +
+  scale_y_continuous(breaks = c(-0.4, -0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) + labs(col = "Dataset", shape = "Habitat type")
+
+ggplot(cats, aes(x = species_richness, colour =study, y = KLR2)) +
+  geom_point(alpha = 0.3) +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm", se = F) + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Original values",  
+       x = "Local genus richness") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.4, 1), xlim = c(0, 60)) +
+  scale_y_continuous(breaks = c(-0.4, -0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) + labs(col = "Dataset", shape = "Habitat type")
+
+?geom_smooth
+
+
+ggplot(test2, aes(x = mean_dist, y = KLR2, colour = study, shape = Habitat_short)) +
+  geom_point(alpha = 0.3) +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm", se = F) + 
+  labs(title = "The relationship between plot dissimilarity and the CATS decomposition",  
+       x = "Average Bray-Curtis index value") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.4, 1)) +
+  scale_y_continuous(breaks = c(-0.4, -0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) +
+  scale_x_continuous(breaks = c(0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)) +
+  labs(col = "Dataset", shape = "Habitat type")
+
+
+ggplot(test2, aes(x = log(FRic), y = KLR2, colour = study, shape = Habitat_short)) +
+  geom_point(alpha = 0.3) +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm", se = F) + 
+  labs(title = "The relationship between functional richness and the CATS decomposition",  
+       x = "Functional richness (log)") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.4, 1)) +
+  scale_y_continuous(breaks = c(-0.4, -0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) +
+  labs(col = "Dataset", shape = "Habitat type")
+
+ggplot(test2, aes(x = FDiv, y = KLR2, colour = study, shape = Habitat_short)) +
+  geom_point(alpha = 0.3) +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm", se = F) + 
+  labs(title = "The relationship between functional richness and the CATS decomposition",  
+       x = "Functional richness (log)") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.4, 1)) +
+  scale_y_continuous(breaks = c(-0.4, -0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) +
+  labs(col = "Dataset", shape = "Habitat type")
+
+ggplot(test2, aes(x = FEve, y = KLR2, colour = study, shape = Habitat_short)) +
+  geom_point(alpha = 0.3) +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm", se = F) + 
+  labs(title = "The relationship between functional richness and the CATS decomposition",  
+       x = "Functional richness (log)") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.4, 1)) +
+  scale_y_continuous(breaks = c(-0.4, -0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) +
+  labs(col = "Dataset", shape = "Habitat type")
+
+
+ggplot(test, aes(x = (species_richness), y = FRic)) +
+  geom_point(alpha = 0.12, aes(colour = study)) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = T)
+
+```
+
+
+
+```{r species list}
+
+data_input_list <- lst(aiello1992_processed_specieslvl, aiello2011_processed_specieslvl, bagaria_processed_specieslvl,  buzzard_processed_specieslvl, castro_processed_specieslvl, chalmandrier_processed_specieslvl, choler_processed_specieslvl, eallonardo_processed_specieslvl, frenette2009_processed_specieslvl, frenette2010_processed_specieslvl, gonzalez_processed_specieslvl,
+jager_processed_specieslvl, jaschke_processed_specieslvl, kassaw_processed_specieslvl, kembel_processed_specieslvl, liane_processed_specieslvl, makelele_processed_specieslvl, marteinsdottir_processed_specieslvl, osuri_processed_specieslvl, raevel_processed_specieslvl, riva_processed_specieslvl, rolhauser_processed_specieslvl, standen_processed_specieslvl)
+
+output <- data.frame()
+
+for(i in 1:length(data_input_list)){
+  
+  input <- data_input_list[[i]]
+  
+  n_plot_before <- ncol(input[["relative_abundances"]][["matrix"]])
+  
+  n_plot_after <- ncol(input[["relative_abundances"]][["matrix4traits_prop"]])
+  
+  study <- study_lwc[[i]]
+  
+  output1 <- bind_cols(n_plot_before = n_plot_before, n_plot_after =  n_plot_after, study = study)
+  
+  output <- bind_rows(output, output1)
+  
+}
+
+
+
+
+
+output_tmp2 <- output %>% 
+  #select(-c(study)) %>%
+  distinct() %>%
+  arrange(Name) %>%
+  #pull(Name) %>%
+  rename(dataset_name = Name)
+
+total_species_list <- output_tmp2 %>%
+  select(dataset_name) %>%
+  distinct()
+
+try_tax_final_clean <- try_traits_tax_final %>%
+  rename(old_try_name = AccSpeciesName,
+         new_wfo_name = new_name)
+
+#These are the species that are present within the new_name list n = 1038
+species_present <- total_species_list %>%
+  filter(dataset_name %in% c(try_tax_final_clean$new_wfo_name)) %>%
+  mutate(new_wfo_name = dataset_name) %>%
+  merge(try_tax_final_clean) %>%
+  select(new_wfo_name, dataset_name, old_try_name, acceptedNameUsageID) %>%
+  distinct()
+
+length(unique(species_present$dataset_name))
+
+
+# These are the species that are not present in the new_name list
+# but do have an entry within the original try species names
+species_present2 <- total_species_list %>%
+  filter(dataset_name %notin% c(species_present$dataset_name)) %>%
+  filter(dataset_name %in% c(try_tax_final_clean$old_try_name)) %>%
+  mutate(old_try_name = dataset_name) %>%
+  merge(try_tax_final_clean) %>%
+  select(new_wfo_name, dataset_name, old_try_name, acceptedNameUsageID) %>%
+  distinct()
+
+
+# In total, 1062 species are present in the filtered try dataset
+species_present_both <- bind_rows(species_present, species_present2)
+
+length(unique(species_present_both$dataset_name))
+
+# That means that there are 439 species that are not present, maybe they are present
+# under a synonym
+not_present <- total_species_list %>%
+  filter(dataset_name %notin% c(species_present_both$dataset_name))
+  
+# Of the species that are not present, 87 have a synonym in the wfo database 
+# of species names and in the cleaned try database
+not_present_id <- classification %>%
+  mutate(scientificName = str_replace_all(scientificName, "  ", " ")) %>%
+  filter(scientificName %in% c(not_present$dataset_name)) %>%
+  drop_na(acceptedNameUsageID) %>%
+  select(acceptedNameUsageID, scientificName) %>%
+  rename(dataset_name = scientificName) %>%
+  distinct() %>%
+  filter(acceptedNameUsageID %in% c(try_tax_final_clean$acceptedNameUsageID)) %>%
+  group_by(dataset_name) %>%
+  filter(n() == 1) %>%
+  ungroup() 
+
+length(unique(id_present$acceptedNameUsageID))
+
+id_present <- not_present_id %>%
+  merge(try_tax_final_clean) %>%
+  select(new_wfo_name, dataset_name, old_try_name, acceptedNameUsageID) %>%
+  distinct()
+
+length(unique(combined_present$dataset_name))
+
+## In total, 1110 species are present in the try database. 
+combined_present <- bind_rows(species_present_both, id_present)
+
+combined_present_full <- try_tax_final_clean %>%
+  select(genus, family, new_wfo_name, acceptedNameUsageID) %>%
+  distinct() %>%
+  right_join(combined_present) 
+
+combined_present_tax <- combined_present_full %>%
+  select(dataset_name, genus, family) %>%
+  distinct()
+
+
+classification_temp <- classification %>%
+   mutate(scientificName = str_replace_all(scientificName, "  ", " ")) %>%
+  rename(dataset_name = scientificName)
+
+not_included_final <- total_species_list %>%
+  filter(dataset_name %notin% c(combined_present_full$dataset_name)) %>%
+  left_join(classification_temp) %>%
+  select(genus, family, dataset_name) %>%
+  distinct()
+
+
+final_final <- bind_rows(combined_present_tax, not_included_final) %>%
+  left_join(output_tmp2) 
+
+
+
+no_data <- final_final %>%
+  filter(is.na(genus)) %>%
+  separate(dataset_name, into = c("genus"), sep = " ", extra = "drop", remove = F) %>%
+  select(-family) 
+
+family_data <- classification %>%
+  filter(genus %in% c(no_data$genus)) %>%
+  filter(taxonomicStatus != "Synonym") %>%
+  select(genus, family) %>%
+  distinct() 
+
+
+ 
+
+
+
+genus_count <-  table(genus_count$study) %>% as.data.frame() %>%
+  rename(study = Var1, genus_n = Freq)
+species_count <- table(final_final_final$study) %>% as.data.frame() %>%
+  rename(study = Var1, species_n = Freq)
+family_count <- table(family_count$study) %>% as.data.frame() %>%
+  rename(study = Var1, family_n = Freq)
+
+taxonomic_counts <- lst(genus_count, species_count, family_count) %>%
+  reduce(full_join)
+
+coverage_output <- data.frame()
+
+
+
+for(i in 1:length(data_input_list)){
+  
+  input <- data_input_list[[i]]
+  
+  regional_trait_coverage_try <- input[["relative_abundances"]][["matrix"]] %>% 
+    as.data.frame() %>%
+    summarise(across(where(is.numeric), ~ sum(.))) %>%
+    t() %>%
+    as.data.frame() %>%
+    mutate(Total_cover = rowSums(.)) %>%
+    select(Total_cover) %>%
+    filter(Total_cover != 0) %>%
+    mutate(Relative_meta_cover_try = Total_cover / sum(Total_cover)) %>%
+    rownames_to_column(var = "Name") %>%
+    filter(Name %in% combined_present_tax$dataset_name) %>%
+    select(Name, Relative_meta_cover_try) %>%
+    summarise(across(where(is.numeric), ~sum(.))) %>%
+    mutate(study = study_lwc[i])
+  
+  regional_trait_coverage <- input[["relative_abundances"]][["matrix"]] %>% 
+    as.data.frame() %>%
+    summarise(across(where(is.numeric), ~ sum(.))) %>%
+    t() %>%
+    as.data.frame() %>%
+    mutate(Total_cover = rowSums(.)) %>%
+    select(Total_cover) %>%
+    filter(Total_cover != 0) %>%
+    mutate(Relative_meta_cover_orig = Total_cover / sum(Total_cover)) %>%
+    rownames_to_column(var = "Name") %>%
+    filter(Name %in% colnames(input[["relative_abundances"]][["matrix_prop_match"]])) %>%
+    select(Name, Relative_meta_cover_orig) %>%
+    summarise(across(where(is.numeric), ~sum(.))) %>%
+    mutate(study = study_lwc[i]) %>%
+    full_join(regional_trait_coverage_try)
+  
+  coverage_output <- bind_rows(coverage_output, regional_trait_coverage)
+  
+  
+}
+
+genus_prep <-   kassaw_processed_specieslvl[["relative_abundances"]][["matrix"]] %>% 
+    as.data.frame() %>% 
+    rownames_to_column(var = "Plot_code") %>%
+    pivot_longer(cols = 2:ncol(.), values_to = "abund", names_to = "dataset_name") 
+
+genus_lvl_test <- final_final_final %>%
+  filter(study == "kassaw") %>%
+  full_join(genus_prep) %>%
+  select(-c(dataset_name, family, study)) %>%
+  group_by(genus, Plot_code) %>%
+  summarize(across(where(is.numeric), ~sum(abund))) %>%
+  ungroup() %>%
+  pivot_wider(values_from = "abund", names_from = "genus") %>%
+  column_to_rownames(var = "Plot_code")
+
+
+
+coverage_output_tmp <- coverage_output %>%
+  relocate(Relative_meta_cover_orig, Relative_meta_cover_try, study) %>%
+  mutate(check = case_when(Relative_meta_cover_try >= 0.8 ~ "Yes",
+                           Relative_meta_cover_try <0.8 ~ "No"))
+
+
+
+``` 
+
+### impact of bias
+```{r cats bias}
+
+colnames(aiello1992_cats)
+
+cats_list <- lst(aiello1992_cats, aiello2011_cats, bagaria_cats, bergholz_cats, buzzard_cats, castro_cats, chalmandrier_cats, choler_cats, eallonardo_cats, frenette2009_cats, frenette2010_cats, gonzalez_cats, jaschke_cats, kassaw_cats, kembel_cats, liane_cats, makelele_cats, marteinsdottir_cats, raevel_cats, riva_cats, rolhauser_cats, standen_cats)
+
+figure_list <- lst(aiello1992_figure, aiello2011_figure, bagaria_figure, bergholz_figure, buzzard_figure, castro_figure, chalmandrier_figure, choler_figure, eallonardo_figure, frenette2009_figure, frenette2010_figure, gonzalez_figure, jaschke_figure, kassaw_figure, kembel_figure, liane_figure, makelele_figure, marteinsdottir_figure, raevel_figure, riva_figure, rolhauser_figure, standen_figure)
+
+output <- data.frame()
+
+for(i in 1:length(cats_list)){
+  
+  
+  input_cats <- cats_list[[i]]
+  input_figure <- figure_list[[i]]
+  
+  cats <- input_cats %>% 
+  select(`model.bias`, `model.uniform.prior.plus.traits`, `model.mean.null.given.uniform`,
+         `model.mean.null.given.prior`, `model.prior.plus.traits`, `Plot_code`, `study`)
+  
+  diversity <- input_figure %>%
+  select(species_richness, shannon, simpson, empty_states, meta_size, mean_dist, study, Plot_code) %>%
+  distinct() %>%
+  full_join(cats)
+  
+  output <- bind_rows(output, diversity)
+  
+  
+}
+
+output2 <- output %>%
+  pivot_longer(cols = 9:12, values_to = "Value", names_to = "Model")
+
+output3 <- output %>%
+  mutate(just.neutral1 = model.prior.plus.traits - model.uniform.prior.plus.traits,
+      just.neutral2 = model.mean.null.given.prior - model.mean.null.given.uniform,
+      just.traits1 = model.uniform.prior.plus.traits - model.mean.null.given.uniform,
+      just.traits2 = model.prior.plus.traits - model.mean.null.given.prior,
+      information.unique.to.local.trait.constraints = just.traits2 ,
+      information.unique.to.neutral.prior = just.neutral1 ,
+      delta.R.trait = just.traits1,
+      delta.R.neutral = just.neutral2,
+      T1 = just.traits1 - just.traits2,
+      T2 = just.neutral2 - just.neutral1,
+      joint.information = T2 ,
+      biologically.unexplained.information = (1 - model.prior.plus.traits)) %>%
+  select(-c(T1, T2, just.neutral1, just.neutral2, just.traits1, just.traits2,
+            delta.R.trait, delta.R.neutral)) %>%
+  pivot_longer(cols = 14:17, values_to = "KLR2", names_to = "Deviance") %>%
+  mutate(Deviance = recode(Deviance,
+                             biologically.unexplained.information = "Unexplained effect",
+                             information.unique.to.neutral.prior = "Pure metacommunity effect",
+                             joint.information = "Joint trait & metacommunity effect",
+                             information.unique.to.local.trait.constraints = "Pure trait effect"
+    ))
+
+
+
+ggplot(output3, aes(x =  `species_richness`, y = KLR2, colour = study)) +
+  geom_point(alpha = 0.3) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = F) + 
+  labs(title = "CATS decomposition, uncorrected for bias",
+       x = "Species richness") +
+  labs(col = "Dataset") + facet_wrap(~Deviance) +
+    geom_hline(yintercept = 0, linetype = 2) 
+
+output4 <- full_join(output, meta_data)
+
+ggplot(output4, aes(x = `species_richness`, y = `model.bias`, colour = study,
+                   shape = Habitat_short)) + 
+  geom_point(alpha = 0.3) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = F) +
+  labs(title = "Relationship between model bias and species richness (distribution length)",
+       x = "Species richness", y = "Model bias", col = "Dataset", shape = "Habitat type") 
+
+ggplot(output2, aes(x =  `empty_states`, y = Value, colour = study)) +
+  geom_point(alpha = 0.3) +
+  theme_classic() +
+  geom_smooth(method = "lm", se = F) + 
+  labs(title = "  ") +
+  labs(col = "Dataset") + facet_wrap(~Model)
+```
+
+
+
+```{r figures}
+assigned_colnames <- paste0("species_", letters[1:20])
+
+community_a <- c(rep(0.125, 8), rep(NA, 20-8)) %>% t() %>% as.data.frame()
+colnames(community_a) <- assigned_colnames
+
+community_b <- c(rep((1/10), 10), rep(NA, 20-10)) %>% t() %>% as.data.frame()
+colnames(community_b) <- assigned_colnames
+
+community_c <- c(rep((1/4), 4), rep(NA, 20-4)) %>% t() %>% as.data.frame()
+colnames(community_c) <- assigned_colnames
+
+community_d <- c(rep((1/12), 12), rep(NA, 20-12)) %>% t() %>% as.data.frame()
+colnames(community_d) <- assigned_colnames
+
+community_e <- rep((1/20), 20) %>% t() %>% as.data.frame()
+colnames(community_e) <- assigned_colnames
+
+
+community_df <- bind_rows(community_c, community_a, community_b,
+                          community_d, community_e) %>%
+  rownames_to_column(var = "Community") %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "Probability", names_to = "Species") %>%
+  mutate(Species = as.character(Species) %>% fct_reorder(Species))
+
+
+ggplot(community_df, aes(x = Species, y = Probability, colour = Community, group = Community)) +
+  geom_point() + geom_line() + theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, vjust = 0.5)) +
+  labs(title = "Uniform species probability distributions (1/S)") +
+   coord_cartesian(ylim = c(0, 0.3))
+
+
+random_numbers <- runif(20)
+
+
+probability_distribution <- random_numbers / sum(random_numbers)
+
+community_f <- probability_distribution %>% t() %>% as.data.frame()
+
+community_g <-  probability_distribution %>% t() %>% as.data.frame()
+
+community_h <-  c(0.2, 0.15, 0.1, 0.07, 0.06, 0.03, rep((0.39/14), 14))  %>% t() %>% 
+as.data.frame()
+colnames(community_f) <- assigned_colnames
+colnames(community_g) <- assigned_colnames
+colnames(community_h) <- assigned_colnames
+
+
+random_numbers <- abs(rnorm(20))
+
+probability_distribution <- random_numbers / sum(random_numbers)
+
+community_i <-  probability_distribution %>% t() %>% as.data.frame()
+community_j <-  c(rep((0.23/12), 12),
+                 0.02, 0.02, 0.03, 0.03, 
+                 0.07, 0.1, 0.2, 0.3) %>% t() %>% as.data.frame()
+
+colnames(community_i) <- assigned_colnames
+colnames(community_j) <- assigned_colnames
+
+
+
+
+community_random <- bind_rows(community_i) %>%
+  rownames_to_column(var = "Community") %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "Probability", names_to = "Species") %>%
+  mutate(Species = as.character(Species) %>% fct_reorder(Species))
+
+
+ggplot(community_random, aes(x = Species, y = Probability, colour = Community, group = Community)) +
+  geom_point() + geom_line() + theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, vjust = 0.5)) +
+  labs(title = "Random species probability distributions", x = NULL) +
+   coord_cartesian(ylim = c(0, 0.3))
+
+
+community_o <-  c(0.3, 0.2, 0.1, 0.07, 0.06, 0.02, 0.02, rep((0.23/13), 13)) %>% 
+  t() %>% as.data.frame()
+
+community_p <- c(0.2, 0.1, 0.1, 0.03, 0.03, 0.1, 0.1, rep((0.66/13), 13)) %>% 
+  t() %>% as.data.frame()
+
+community_r <- c(0.34, 0.28, 0.11, 0.05, 0.05, 0.03, rep((0.14/13), 14)) %>% 
+  t() %>% as.data.frame()
+
+colnames(community_o) <- assigned_colnames
+colnames(community_p) <- assigned_colnames
+colnames(community_r) <- assigned_colnames
+
+community_exam <- bind_rows(community_o) %>%
+  rownames_to_column(var = "Community") %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "Probability", names_to = "Species") %>%
+  mutate(Species = as.character(Species) %>% fct_reorder(Species))
+
+
+ggplot(community_exam, aes(x = Species, y = Probability, colour = Community, group = Community)) +
+  geom_point() + geom_line() + theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, vjust = 0.5)) +
+  labs(title = "Random species probability distributions", x = NULL, colour = NULL) +
+   coord_cartesian(ylim = c(0, 0.3))
+
+
+```

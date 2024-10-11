@@ -1,0 +1,152 @@
+---
+title: "3. Complete analysis Buzzard et al. 2016"
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Buzzard et al. 2016
+```{r clean data}
+
+buzzard <- read_csv("data/raw/Buzzard et al. 2015/FEBuzzardSpTraits.csv") %>%
+  replace_na(list(species = "sp.")) %>%
+  mutate(Name = paste0(genus, " ", species)) %>%
+  rename(Plot_code = plot) %>%
+  mutate(across(Plot_code, as.character)) %>%
+  mutate(Name = recode(Name, "Allophyllusc occidentalisc" = "Allophylus occidentalis",
+                       "Tabebuea ochracea" = "Tabebuia ochracea"))
+
+buzzard_veg <- buzzard %>%
+  select(c(Plot_code, basal.area, Name)) %>%
+  pivot_wider(values_from = basal.area, names_from = Name) %>%
+  replace(is.na(.), 0) %>% 
+  column_to_rownames(var = "Plot_code") %>%
+  select(order(colnames(.)))
+
+buzzard_veg_temp <- buzzard %>%
+  select(c(Plot_code, basal.area, Name)) %>%
+  pivot_wider(values_from = basal.area, names_from = Name) %>%
+  replace(is.na(.), 0) %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "basal.area", names_to = "Name") 
+  
+  
+buzzard_species_list <- colnames(buzzard_veg)
+  
+buzzard_trait <- buzzard %>%
+  select(c(Plot_code, Name, SLA, LPC, CN)) %>%
+  full_join(buzzard_veg_temp) %>%
+  group_by(Name) %>%
+  mutate(across(where(is.numeric), ~replace_na(., mean(., na.rm = TRUE)))) %>%
+  select(-c(basal.area)) %>%
+  ungroup() %>%
+  select(order(colnames(.))) %>%
+  relocate(Plot_code, Name) %>%
+  arrange(Name) %>%
+  drop_na()
+
+buzzard_trait_fd <- buzzard_trait
+
+species_list_fd <- buzzard_trait %>% pull(Name)
+
+buzzard_veg_fd <- buzzard_veg %>%
+  select(all_of(species_list_fd))
+
+buzzard_trait <- buzzard_trait %>%
+  mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+ 
+traitlist <- sort(c("SLA", "LPC", "CN"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+
+``` 
+
+
+## 5. Perform calculations
+```{r calculations }
+
+buzzard_processed_specieslvl <- cats_preparation(input_veg = buzzard_veg, input_trait = buzzard_trait, cutoff_value =  0.8, trait_information = trait_information, trait_detail = "Plot")
+
+mean_dist <- calculate_mean_dist(buzzard_veg, buzzard_processed_specieslvl)
+
+FD_df <- calculate_FD_plotlvl(buzzard_processed_specieslvl, buzzard_veg_fd, buzzard_trait_fd)
+
+diversity_info <- buzzard_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() %>% 
+  mutate(shannon = diversity(.[,1:ncol(.)], index = "shannon", MARGIN = 1, base = exp(1)),
+         simpson = diversity(.[,1:ncol(.)], index = "simpson", MARGIN = 1, base =exp(1)),
+         species_richness = specnumber(.[,1:ncol(.)], MARGIN = 1),
+         empty_states = ncol(buzzard_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]]) - species_richness,
+         meta_size = ncol(buzzard_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]])) %>%
+  select(shannon, simpson, species_richness, empty_states, meta_size) %>% # base = exp(1) gives the shannon index a log e base
+  rownames_to_column(var = "Plot_code") %>%
+  full_join(mean_dist) %>%
+  full_join(FD_df)
+
+
+```
+
+
+
+## 6. Cats model
+```{r cats calculations}
+
+buzzard_cats <- cats_calculations(buzzard_processed_specieslvl, trait_information,
+                             trait_detail = "Plot") %>%
+  mutate(study = "Buzzard")
+
+
+buzzard_figure <- cats_visualisation(buzzard_cats) %>%
+  mutate(study = "Buzzard")
+
+save(buzzard_processed_specieslvl, buzzard_figure, buzzard_species_list, buzzard_cats,
+  file = "data/processed/buzzard_calculations.RData")
+
+ggplot(buzzard_figure, aes(x = species_richness, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Buzzard et al. 2016",
+       x = "Species richness") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+ggplot(buzzard_figure, aes(x = mean_dist, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between plot dissimilarity and the CATS decomposition - Buzzard et al., 2016",  
+       x = "Average Bray-Curtis index value") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+
+
+```

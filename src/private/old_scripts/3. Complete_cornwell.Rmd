@@ -1,0 +1,126 @@
+---
+title: "3. Complete analysis Cornwell and Ackerly, 2009"
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Cornwell and Ackerly, 2009
+```{r clean data}
+
+cornwell_veg <- read_excel("data/raw/CESTES/Plant_data/Cornwell2009_AJ.xlsx", 
+    sheet = "commfull") %>%
+    pivot_wider(names_from = species, values_from = percent_cover) %>%
+    mutate(across(where(is.numeric), ~replace_na(., 0))) %>%
+    column_to_rownames(var = "plot" ) %>%
+    select(order(colnames(.)))
+
+cornwell_trait <- read_excel("data/raw/CESTES/Plant_data/Cornwell2009_AJ.xlsx", 
+    sheet = "traitsfull")  %>%
+  rename(SLA = arth_mean_sla, Name = species) %>%
+  select(c(Name, SLA)) %>%
+  select(order(colnames(.))) %>%
+  relocate(Name) %>%
+  arrange(Name) %>%
+  mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+
+
+cornwell_species_list <- cornwell_trait %>% 
+  select(Name)
+
+traitlist <- sort(c("SLA"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+
+``` 
+
+
+## 5. Perform calculations
+```{r calculations }
+
+cornwell_processed_specieslvl <- prep_studylvl(input_veg = cornwell_veg, input_trait = cornwell_trait, cutoff_value =  0.8, trait_information = trait_information)
+
+mean_dist <- calculate_mean_dist(cornwell_veg, cornwell_processed_specieslvl)
+
+#FD <- dbFD(cornwell_trait_fd, cornwell_veg_fd, stand.x = T)
+
+diversity_info <- cornwell_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() %>% 
+  mutate(shannon = diversity(.[,1:ncol(.)], index = "shannon", MARGIN = 1, base = exp(1)),
+         simpson = diversity(.[,1:ncol(.)], index = "simpson", MARGIN = 1, base =exp(1)),
+         species_richness = specnumber(.[,1:ncol(.)], MARGIN = 1)) %>%
+  select(shannon, simpson, species_richness) %>% # base = exp(1) gives the shannon index a log e base
+  rownames_to_column(var = "Plot_code") %>%
+  full_join(mean_dist) #%>%
+  #mutate(FEve = FD$FEve,
+   #     FDiv  = FD$FDiv,
+    #    FRic = FD$FRic,
+     #   RaoQ = FD$RaoQ)
+
+```
+
+
+
+## 6. Cats model
+```{r cats calculations}
+
+cornwell_cats <- cats_studylvl(cornwell_processed_specieslvl, trait_information)
+
+calculations_cwm_cwv <- cornwell_processed_specieslvl$calculations_cwm_cwv
+
+cornwell_figure <- cats_visualisation(cornwell_cats) %>%
+  mutate(study = "Cornwell")
+
+save(cornwell_processed_specieslvl, cornwell_figure, cornwell_species_list, 
+  file = "data/processed/cornwell_calculations.RData") 
+
+ggplot(cornwell_figure, aes(x = species_richness, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Cornwell and Ackerly, 2009",
+       x = "Species richness") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) +
+  scale_x_continuous(breaks = c(0, 2, 4, 6, 8, 10, 12, 14))
+
+ggplot(cornwell_figure, aes(x = mean_dist, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between plot dissimilarity and the CATS decomposition - Cornwell and Ackerly, 2009",
+       x = "Average Bray-Curtis index value") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+
+
+```

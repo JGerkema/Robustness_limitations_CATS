@@ -1,0 +1,149 @@
+---
+title: "2. Complete analysis Choler et al."
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Choler et al. 2005
+```{r clean data}
+
+choler_species_list <- read_excel("data/raw/CESTES/Plant_data/Choler2005_AJ.xlsx", 
+    sheet = "splist") %>%
+    rename(Sp = TaxCode) %>%
+  separate(Taxon, into = c("genus", "sp", "extra"), extra = "merge", remove = F, sep = " ") %>%
+  mutate(Taxon = paste0(genus, " ", sp))
+
+choler_veg <- read_excel("data/raw/CESTES/Plant_data/Choler2005_AJ.xlsx") %>%
+  column_to_rownames(var = "Sites") 
+
+colnames(choler_veg) <- choler_species_list$Taxon
+
+choler_veg <- choler_veg %>%
+  select(order(colnames(.))) %>%
+  mutate(across(where(is.numeric),  ~recode(., "1" = 2.5, "2" = 7.5,
+                                            "3" = 17.5, "4" = 37.5,
+                                            "5" = 62.5, "6" = 87.5)))
+
+choler_trait <- read_excel("data/raw/CESTES/Plant_data/Choler2005_AJ.xlsx", 
+  sheet = "traits")  %>%
+  full_join(choler_species_list) %>%
+  rename(LA = Area, SM = Seed) %>%
+  select(-c(Sp, TaxAbbrev, genus, extra, sp)) %>%
+  rename(Name = Taxon) %>%
+  mutate(Angle = Angle + 0.0001) %>% # To avoid values of 0
+  select(order(colnames(.))) %>%
+  relocate(Name) %>%
+  arrange(Name)
+
+choler_trait_fd <- choler_trait %>%
+  column_to_rownames(var = "Name") 
+
+choler_trait <- choler_trait %>%
+     mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+
+
+traitlist <- sort(c("Angle", "Height", "LA", "N_mass", "SLA", "SM", "Spread", "Thick"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+
+``` 
+
+
+## 5. Perform calculations
+```{r calculations }
+
+choler_processed_specieslvl <- cats_preparation(input_veg = choler_veg, input_trait = choler_trait, 
+                                             cutoff_value =  0.8, trait_information = trait_information,
+                                             trait_detail = "Study")
+
+mean_dist <- calculate_mean_dist(choler_veg, choler_processed_specieslvl)
+
+FD <- dbFD(choler_trait_fd, choler_veg,  stand.x = T)
+
+FD_df <- data.frame(FEve = FD$FEve,
+        FDiv  = FD$FDiv,
+        FRic = FD$FRic,
+        RaoQ = FD$RaoQ,
+        qual.FRic = FD$qual.FRic) %>%
+  rownames_to_column(var = "Plot_code")
+
+diversity_info <- choler_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() %>% 
+  mutate(shannon = diversity(.[,1:ncol(.)], index = "shannon", MARGIN = 1, base = exp(1)),
+         simpson = diversity(.[,1:ncol(.)], index = "simpson", MARGIN = 1, base =exp(1)),
+         species_richness = specnumber(.[,1:ncol(.)], MARGIN = 1),
+         empty_states = ncol(choler_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]]) - species_richness,
+         meta_size = ncol(choler_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]])) %>%
+  select(shannon, simpson, species_richness, empty_states, meta_size) %>% # base = exp(1) gives the shannon index a log e base
+  rownames_to_column(var = "Plot_code") %>%
+  full_join(mean_dist) %>%
+  full_join(FD_df)
+
+
+
+```
+
+
+
+## 6. Cats model
+```{r cats calculations}
+
+choler_cats <- cats_calculations(choler_processed_specieslvl, trait_information,
+                             trait_detail = "Study") %>%
+  mutate(study = "Choler")
+
+
+choler_figure <- cats_visualisation(choler_cats) %>%
+  mutate(study = "Choler")
+
+save(choler_processed_specieslvl, choler_figure, choler_species_list, choler_cats,
+  file = "data/processed/choler_calculations.RData")
+
+ggplot(choler_figure, aes(x = species_richness, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Choler et al. 2005",
+       x = "Species richness") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  ))
+
+ggplot(choler_figure, aes(x = mean_dist, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between plot dissimilarity and the CATS decomposition - Choler et al. 2005",
+       x = "Average Bray-Curtis index value") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.1, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+```

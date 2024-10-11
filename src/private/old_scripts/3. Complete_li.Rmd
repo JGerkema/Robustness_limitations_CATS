@@ -1,0 +1,147 @@
+---
+title: "3. Complete analysis Eallonardo et al."
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 Li et al. 2016
+```{r clean data}
+
+li_veg <- read_excel("data/raw/Li Wenhuai et al. 2016/Species abundance and functional trait_2016-09-25.xlsx", 
+    sheet = "species abundance") %>%
+  mutate(Plot_code = paste0(Topography, `Grazing intensity (sheep ha-1)`,
+                            `Sub-plot`, Quadrat)) %>%
+  select(-c(Topography, `Grazing intensity (sheep ha-1)`,
+                            `Sub-plot`, Quadrat)) %>%
+  column_to_rownames(var = "Plot_code") %>%
+  select(order(colnames(.)))
+  
+li_veg_info <- read_excel("data/raw/Li Wenhuai et al. 2016/Species abundance and functional trait_2016-09-25.xlsx", 
+    sheet = "species abundance") %>%
+  mutate(Plot_code = paste0(Topography, `Grazing intensity (sheep ha-1)`,
+                            `Sub-plot`, Quadrat)) %>%
+  select(c(Plot_code, Topography, `Grazing intensity (sheep ha-1)`,
+                            `Sub-plot`, Quadrat))
+
+  
+li_trait <- read_excel("data/raw/Li Wenhuai et al. 2016/Species abundance and functional trait_2016-09-25.xlsx", 
+    sheet = "Plant traits") %>%
+  rename(SLA = `Specific leaf area (cm2 g-1)`,
+         Height = `Plant height (cm)`,
+         Stemleafratio = `Stem : Leaf biomass ratio`,
+         Leaf_N = `Leaf N content (%)`,
+         Name = `Species name`) %>%
+  select(order(colnames(.))) %>%
+  relocate(Name) %>%
+  arrange(Name)
+
+
+traitlist <- sort(c( "SLA", "Height", "Stemleafratio", "Leaf_N"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+
+``` 
+
+
+## 5. Perform calculations
+```{r calculations }
+
+processed_specieslvl <- prep_studylvl(input_veg = li_veg, input_trait = li_trait, cutoff_value =  0.8, trait_information = trait_information)
+
+all_dist <- as.matrix(vegdist(li_veg, method="bray"))
+
+plot_code_vector <- rownames(processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]])
+
+all_dist <- all_dist %>%
+  as.data.frame() %>%
+  select(all_of(plot_code_vector)) %>%
+  filter(rownames(.) %in% plot_code_vector)
+
+
+
+mean_dist <- data.frame()
+
+for(p in plot_code_vector){
+  
+  dist_oneplot <- all_dist %>%
+    as.data.frame() %>%
+    select(all_of(p)) %>%
+    filter(rownames(.) %notin% c(p)) %>%
+    summarise(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+    t() %>%
+    as.data.frame() %>%
+    rename(mean_dist = V1)
+  
+  mean_dist <- bind_rows(mean_dist, dist_oneplot)
+   
+}
+
+mean_dist <- mean_dist %>%
+  rownames_to_column(var = "Plot_code")
+
+diversity_info <- processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() %>% 
+  mutate(shannon = diversity(.[,1:ncol(.)], index = "shannon", MARGIN = 1, base = exp(1)),
+         simpson = diversity(.[,1:ncol(.)], index = "simpson", MARGIN = 1, base =exp(1)),
+         species_richness = specnumber(.[,1:ncol(.)], MARGIN = 1)) %>%
+  select(shannon, simpson, species_richness) %>% # base = exp(1) gives the shannon index a log e base
+  rownames_to_column(var = "Plot_code") %>% 
+  full_join(mean_dist)
+
+#save(processed_specieslvl, diversity_info, bergholz_clean, plot_code_vector, trait_information,
+#  file = "data/processed/Bergholz_processed.RData")
+
+
+
+```
+
+
+
+## 6. Cats model
+```{r cats calculations}
+
+li_cats <- cats_studylvl(processed_specieslvl, trait_information)
+
+calculations_cwm_cwv <- processed_specieslvl$calculations_cwm_cwv
+figure <- cats_visualisation(li_cats)
+
+ggplot(figure, aes(x = species_richness, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Li et al. 2016
+",
+       x = "Species richness") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+save(processed_specieslvl, figure, li_cats, trait_information,
+ file = "data/processed/li_complete.RData")
+
+
+```

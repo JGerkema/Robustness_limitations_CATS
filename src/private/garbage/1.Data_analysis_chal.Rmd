@@ -1,0 +1,53 @@
+---
+title: "1. Data_analysis"
+author: "Jelyn Gerkema"
+date: "2023-07-11"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Set up 
+
+```{r set up}
+
+source("src/settings.R")
+source("src/functions.R")
+
+load("data/processed/Char_processed.RData")
+
+```
+
+## 2. Running the model 
+
+### 2.1 Setting up multiple cores
+
+```{r setting up cores}
+
+#Determines amount of cores, substract four to keep to pc free for other processes.
+n_cores <- parallel::detectCores() - 4 
+
+my_cluster <- makeSOCKcluster(n_cores)
+
+registerDoSNOW(cl = my_cluster)
+
+foreach::getDoParRegistered() # check if cluster is set up
+
+```
+
+### 2.2 Running the CATS model
+
+```{r actually runnin the model}
+
+cats_output <- cats_plotlvl(processed_specieslvl, trait_information, plot_code_vector)
+
+
+save(output_df, output_nmds, file = "data/processed/Cats_output_chal.RData")
+
+```
+
+

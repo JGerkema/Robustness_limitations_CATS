@@ -1,0 +1,184 @@
+---
+title: "3. Complete analysis Kassaw et al."
+author: "Jelyn Gerkema"
+date: "2023-10-16"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 
+```{r clean data}
+
+
+# dataset consists of 40 plots with two subplot each. In the original article, the community is averages for the two subplots.
+# I have done the same here
+standen_veg_species_list <- read_excel("data/raw/Standen et al. 2021/Community_Composition_Scotty Creek_Standen 2021_RAW.xlsx", 
+    sheet = "Meta Data") %>% 
+  select(c(`Species Abbreviations`, `Species List (Genus species)`))
+
+standen_veg <- read_excel("data/raw/Standen et al. 2021/Community_Composition_Scotty Creek_Standen 2021_RAW.xlsx") %>%
+  pivot_longer(cols = 5:ncol(.), names_to = "Species Abbreviations", values_to = "abundance") %>%
+  group_by(Plot, `Species Abbreviations`) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = TRUE))) %>%
+  ungroup() %>%
+  full_join(standen_veg_species_list) %>%
+  select(-c(`Species Abbreviations`, Quadrat)) %>%
+  pivot_wider(names_from = `Species List (Genus species)`, values_from = abundance) %>%
+  column_to_rownames(var = "Plot") %>%
+  select(order(colnames(.)))  
+
+standen_veg_temp <- standen_veg %>%
+  rownames_to_column(var = "Plot_code") %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "cover", names_to = "Name")
+
+standen_trait_species_list <- read_excel("data/raw/Standen et al. 2021/Trait Data_Scotty Creek_Standen2021.xlsx", 
+    sheet = "Meta Data") %>%
+    filter(Variable == "Species") %>%
+    separate(Notes, into = c(as.character(1:18)), sep = ";") %>%
+    select(-c(Variable, Definition, Units)) %>%
+    t() %>%
+    as.data.frame() %>%
+    separate(V1, into = c("Species", "Name"), sep = "=") %>%
+    mutate(across(where(is.character), str_trim))
+    
+
+standen_trait <- read_excel("data/raw/Standen et al. 2021/Trait Data_Scotty Creek_Standen2021.xlsx") %>%
+  full_join(standen_trait_species_list) %>%
+  rename(Plot_code = Plot, SLA = SLA_mm2_mg, N_mass = N_mass_mg_g, 
+         photosynthetic_rate = A_mass_umol_g_s, respiration_rate = R_mass_umol_g_s) %>%
+  group_by(Plot_code, Name) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = TRUE))) %>%
+  ungroup() %>%
+  full_join(standen_veg_temp) %>%
+  drop_na(cover) %>%
+  group_by(Name) %>%
+  mutate(across(where(is.numeric), ~replace_na(., mean(., na.rm = TRUE)))) %>%
+  ungroup() %>%
+  drop_na() %>%
+  select(-c(cover)) %>%
+  select(order(colnames(.))) %>%
+  relocate(Plot_code, Name) %>%
+  arrange(Name)
+
+standen_trait_fd <- standen_trait
+
+species_list_fd <- standen_trait %>% pull(Name)
+
+standen_veg_fd <- standen_veg %>%
+  select(all_of(species_list_fd))
+
+standen_species_list <- colnames(standen_veg_fd)
+
+standen_trait <- standen_trait %>%
+  mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+
+traitlist <- sort(c( "N_mass", "photosynthetic_rate", "respiration_rate", "SLA"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+``` 
+
+
+## 5. Perform calculations
+```{r calculations }
+
+standen_processed_specieslvl <- cats_preparation(input_veg = standen_veg, 
+                                              input_trait = standen_trait, cutoff_value =  0.8, 
+                                              trait_information = trait_information,
+                                             trait_detail = "Plot")
+
+mean_dist <- calculate_mean_dist(standen_veg, standen_processed_specieslvl)
+
+FD_df <- calculate_FD_plotlvl(standen_processed_specieslvl, standen_veg_fd, standen_trait_fd)
+
+diversity_info <- standen_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]] %>% 
+  as.data.frame() %>% 
+  mutate(shannon = diversity(.[,1:ncol(.)], index = "shannon", MARGIN = 1, base = exp(1)),
+         simpson = diversity(.[,1:ncol(.)], index = "simpson", MARGIN = 1, base =exp(1)),
+         species_richness = specnumber(.[,1:ncol(.)], MARGIN = 1),
+         empty_states = ncol(standen_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]]) - species_richness,
+         meta_size = ncol(standen_processed_specieslvl[["relative_abundances"]][["matrix4traits_prop"]])) %>%
+  select(shannon, simpson, species_richness, empty_states, meta_size) %>% # base = exp(1) gives the shannon index a log e base
+  rownames_to_column(var = "Plot_code") %>%
+  full_join(mean_dist) %>%
+  full_join(FD_df)
+
+
+
+```
+
+
+
+## 6. Cats model
+```{r cats calculations}
+
+#Determines amount of cores, substract four to keep to pc free for other processes.
+n_cores <- parallel::detectCores() - 5 
+
+my_cluster <- makeSOCKcluster(n_cores)
+
+registerDoSNOW(cl = my_cluster)
+
+foreach::getDoParRegistered() # check if cluster is set up
+
+
+standen_cats <- cats_calculations(standen_processed_specieslvl, trait_information,
+                                  trait_detail = "Plot") %>%
+  mutate(study = "Standen")
+
+standen_figure <- cats_visualisation(standen_cats) %>%
+  mutate(study = "Standen")
+
+save(standen_processed_specieslvl, standen_figure, standen_species_list, standen_cats,
+ file = "data/processed/standen_calculations.RData")
+
+ggplot(standen_figure, aes(x = species_richness, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between species richness and the CATS decomposition - Standen et al. 2021",
+       x = "Species richness") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+ggplot(standen_figure, aes(x = mean_dist, y = KLR2)) +
+  geom_point() +
+  facet_wrap(~Deviance) + 
+  theme_classic() +
+  geom_smooth(method = "lm") + 
+  labs(title = "The relationship between plot dissimilarity and the CATS decomposition - Standen et al. 2021",
+       x = "Average Bray-Curtis index value") +
+  geom_hline(yintercept = 0, linetype = 2) +
+   coord_cartesian(ylim = c(-0.2, 1)) +
+  scale_y_continuous(breaks = c(-0.2, 0,0.2, 0.4, 
+    0.6,  0.8,  1
+  )) 
+
+
+
+
+
+
+```

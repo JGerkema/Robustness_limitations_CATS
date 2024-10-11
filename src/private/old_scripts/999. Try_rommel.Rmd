@@ -1,0 +1,110 @@
+---
+title: "Untitled"
+author: "Jelyn Gerkema"
+date: "2023-11-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+
+```{r load data}
+TRYdata1 <- rtry_import("data/raw/TRY/29649.txt")
+str(TRYdata1)
+
+test3 <- output_tmp %>%
+  left_join(TRYdata1)
+
+test4 <- TRYdata1 %>%
+  drop_na(TraitID)
+
+
+bergholz_species <- bergholz_species_list %>% as.data.frame %>%
+  rename(Name = ".") %>%
+  mutate(Name = recode(Name, `Achillea millefolium aggr.` = "Achillea millefolium",
+                       `Medicago sativa aggr.` = "Medicago sativa")) %>%
+  pull(Name)
+
+
+
+test_berg <- TRYdata1 %>%
+  filter(SpeciesName %in% bergholz_species) %>%
+  drop_na(TraitID)
+
+test_berg_full <-TRYdata1 %>%
+  filter(SpeciesName %in% bergholz_species) 
+
+tmp_unfiltered <- rtry_select_row(TRYdata1, DataID %in% 1961)
+tmp_unfiltered <- rtry_explore(tmp_unfiltered, DataID, DataName, OriglName, OrigValueStr, OrigUnitStr, StdValue, Comment, sortBy = OrigValueStr)
+
+try_lifestage <- rtry_exclude(TRYdata1, (DataID %in% 413) & (OrigValueStr %in% c("immature", "junvenil", "juvenil", "Juvenil", "juvenil (3 years)",
+"juvenil: 0.5-2.5 m high", "juvenile, 11-14 weeks", "Juvenile, 15 years",
+"juvenile, 6 weeks", "S", "sapling", "Sapling (1 - 10 y)", "saplings", "saplings (height 1-2m)",
+"saplings, 5 - 10 years", "second years after sowing seeds (relatively juvenile for most of species)", "seedling", "Seedling (0 - 1 y)", "seedlings", "seedlings, < 1/2 year",
+"seedlings, 1st year", "seedlings, 6 month old", "T", "T/F", "T?", "Y", "young")), baseOn = ObservationID)
+
+
+try_ls_exp <- rtry_exclude(try_lifestage, (DataID %in% 327) & (OrigValueStr %in%
+  c("alley", "Arnold Arboretum, Harvard University", "BAU-Abandonée/Seslérie non paturée.", "BAU-Abandonnée/Nardaie non paturée", "BAU-Abandonnée/Nardaie Reposoir",
+    "BAU-Abandonnée/prairie grasse non paturée", "BAU-Nardaie paturée.",
+    "BAU-Paturée Intermediaire Grasse-seslérie", "BAU-Prairie à Seslérie paturée",
+    "BAU-Prairie grasse paturée", "branch bag", "Branch Bag", "C", "Chamber",
+    "climate chamber", "Climate chamber, non-limiting conditions, (cf. dataset reference)", "climate chambers", "comm.garden.Spain", "Common garden", "Common Garden", "Common Garden Experiment", "common garden in growth containers with soil corresponding to seed origin",
+    "Common garden trees", "common garden, understorey", "	
+Controlled climate chamber", "controlled environment", "controlled environment room", 
+"cultivated", "Cultivated botanical collection", "disturbed soil treatment; coniferous forest", "disturbed soil treatment; deciduous alluvial forest", "disturbed soil treatment; fallow wet meadow", "Double strata agroforestry with pruned Erythrina poeppigiana and Chloroleucon eurycyclum", "Double strata agroforestry with pruned Erythrina poeppigiana and Terminalia amazonia", "drought treatment", "Dry Plot", "dry season measurements (see also #659)", "E", "experimental", "experimental treatment", "experimental warming with open top chambers during the snow-free period, increasing daily mean  ...", "Experimental, Glasshouse", "experimental, in pots outside", "experimental, outside in pots", "FACE",
+"FE", "field experiment", "Field Experiment", "forest fertilization", "forest stand", 
+"Fully open overstory 90 days, seedling", "Fully open overstory, seedling", 
+"G", "garden", "GH", "Glass house", "Glasshouse", "Glasshouse experiment", 
+"glasshouse, climate controlled", "glasshouse, plastic tubes 10cm diameter, 100 cm depth",
+"grassland common garden", "Greehouse", "Green house", "greenhouse", "Greenhouse",
+"greenhouse - Northern Arizona University (standard controlled environment)", 
+"Greenhouse plants", "Greenhouse, grrowth container", "Greenhouse, Indiana University",
+"Greenhouse: highlight_highpH_competition", "Greenhouse: highlight_highpH_nocompetition",
+"Greenhouse: highlight_lowpH_competition", "Greenhouse: highlight_lowpH_nocompetition",
+"Greenhouse: lowleight_lowpH_competition", "Greenhouse: lowlight_highpH_competition",
+"Greenhouse: lowlight_highpH_nocompetition", "Greenhouse: lowlight_lowpH_nocompetition",
+"Growing with barley crop", "Grown from seed sown in outdoor field experiment",
+"growth-chamber", "growth chamber", "Growth chamber", "Growth exp", "growth_chamber",
+"Harte warming experiment (montane meadow)", "I do not like this paper. Results looks questionable", "hydroponic", "I do not like this paper. Results looks questionable", "Irrigation and N fertilisation (100 kg/ha)", "lab", "Large potted monoculture mesocosms, outside, soil from local meadow,  grazing and harvests emulated", "LAU_Grazed/Abandoned",
+"LAU_Never ploughed/grazed", "LAU_Never ploughed/grazed highland", "LAU_Never ploughed/grazed slopes", "LAU_Never ploughed/mown", "LAU_Ploughed/grazed", 
+"LAU_Ploughed/mown", "LAU_Ploughed/mown and fertilized", "mesocosm", "mesocosm, 50l pots",
+"mini-ecosystem", "Monoculture", "natural environment, high warming +4C, preccipitation ambient", "natural environment, high warming +4C, preccipitation ambient -50%", 
+"natural environment, high warming +4C, preccipitation ambient +50%", 
+"natural environment, low warming +1.5C, preccipitation ambient", 
+"natural environment, low warming +1.5C, preccipitation ambient -50%",
+"natural environment, low warming +1.5C, preccipitation ambient +50%",
+"natural environment, medium warming +2.5C, preccipitation ambient",
+"natural environment, medium warming +2.5C, preccipitation ambient -50%",
+"natural environment, medium warming +2.5C, preccipitation ambient +50%",
+"natural environment, no warming, preccipitation ambient -50%",
+"natural environment, no warming, preccipitation ambient +50%",
+"natural grassland, experimental nutrient NP addition",
+"Natural/C", "nursery", "nutrient addition experiment", "open-sided growth chamber",
+"open-top chamber", "open-top chambers", "Open Top", "Open top chambers", "organic farming", "OTC", "OTC field", "OTC O3", "Other", "Partially open overstory 90 days, seedling", "plantation", "Planted trees", "Planted vines", "PM", "pot", "Pot-grown",
+"Pot exp", "Pots outside", "pots, outside in natural environment", "shade houses", 
+"Undisturbed, seedling", "VER_permanent meadow mown and fertilized", "VER_permanent meadows mown and fertilized", "water stress experiment", "water treatment", "whole-tree chamber", "WTC")), baseOn = ObservationID)
+
+
+try_ls_exp_hlth <- rtry_exclude(try_ls_exp, (DataID %in% 1961) & (OrigValueStr %in% c("Dead" )), baseOn = ObservationID)
+
+tmp_unfiltered <- rtry_explore(try_ls_exp_hlth, DataID, DataName, TraitID, TraitName, sortBy = TraitID)
+
+
+
+2+2
+ install.packages("rtry")
+library(rtry)
+
+
+
+```

@@ -1,0 +1,282 @@
+---
+title: "TRY database"
+author: "Jelyn Gerkema"
+date: "2023-11-17"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+install.packages("WorldFlora")
+
+
+
+```
+
+
+```{r try}
+classification <- read_delim("data/raw/classification.csv", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE)
+
+library(rtry)
+
+TRYdata1 <- rtry_import(path_to_data)
+
+tmp_unfiltered <- rtry_select_row(TRYdata1, DataID %in% 413)
+
+tmp_unfiltered <- rtry_explore(tmp_unfiltered, DataID, DataName, OriglName, OrigValueStr, OrigUnitStr, StdValue, Comment, sortBy = OrigValueStr)
+
+
+try_ls <- rtry_exclude(TRYdata1, (DataID %in% 413) & 
+                         (OrigValueStr %in% c("13 weeks after sowing, 8 weeks after start of treatments",
+          "check", "compound", "immature", "intermed", "junvenil", "juvenil", "Juvenil", "juvenil (3 years)",
+          "juvenil: 0.5-2.5 m high", "juvenile", "Juvenile", "juvenile, 11-14 weeks", "Juvenile, 15 years",
+          "juvenile, 6 weeks", "S", "sapling", "Sapling (1 - 10 y)", "saplings", "saplings (height 1-2m)",
+          "saplings, 5 - 10 years", "second years after sowing seeds (relatively juvenile for most of species)",
+          "seedling", "Seedling", "Seedling (0 - 1 y)", "seedlings", "seedlings, < 1/2 year", 
+          "seedlings, 1st year", "seedlings, 6 month old", "T", "T/F", "T?", "Y", "young", "Young leaves", 
+          "young tree", "young trees at  0.5-3m height", "young, not seedlings")), baseOn = ObservationID)
+
+
+tmp_unfiltered <- rtry_select_row(TRYdata1, DataID %in% 327)
+
+tmp_unfiltered <- rtry_explore(tmp_unfiltered, DataID, DataName, OriglName, OrigValueStr, OrigUnitStr, StdValue, Comment, sortBy = OrigValueStr)
+
+try_ls_exp <- rtry_exclude(try_ls, (DataID %in% 327) & 
+                         (OrigValueStr %in% c("BAU-Abandonnée/Nardaie Reposoir", 
+          "BAU-Abandonnée/Nardaie non paturée", "BAU-Abandonnée/prairie grasse non paturée", 
+          "BAU-Abandonée/Seslérie non paturée.", "BAU-Nardaie paturée.", 
+          "BAU-Paturée Intermediaire Grasse-seslérie",
+          "BAU-Prairie grasse paturée", "BAU-Prairie à Seslérie paturée", "Branch Bag", "C", "CG", "Chamber",
+          "Climate Chamber", "Climate chamber, non-limiting conditions, (cf. dataset reference)", 
+          "Common Garden", "Common Garden Experiment", "Common garden", "Common garden trees", 
+          "Controlled climate chamber", "Dry Plot", "Experimental, Glasshouse", "FACE",
+          "FE", "Field Experiment", "Fully open overstory 90 days, seedling", 
+          "Fully open overstory, seedling", "G", "GH", "Glass house", "Glasshouse", 
+          "Glasshouse experiment", "Greehouse", "Green house", "Greenhouse", "Greenhouse plants",
+          "Greenhouse, Indiana University", "Greenhouse, grrowth container", 
+          "Greenhouse: highlight_highpH_competition", "Greenhouse: highlight_highpH_nocompetition",
+          "Greenhouse: highlight_lowpH_competition", "Greenhouse: highlight_lowpH_nocompetition",
+          "Greenhouse: lowleight_lowpH_competition", "Greenhouse: lowlight_highpH_competition",
+          "Greenhouse: lowlight_highpH_nocompetition", "Greenhouse: lowlight_lowpH_nocompetition",
+          "Grown from seed sown in outdoor field experiment", "Growth Chamber", "Growth chamber", 
+          "Growth exp", "Harte warming experiment (montane meadow)", 
+          "I do not like this paper. Results looks questionable", 
+          "Irrigation and N fertilisation (100 kg/ha)", "LAU_Grazed/Abandoned", 
+          "LAU_Never ploughed/grazed", "LAU_Never ploughed/grazed highland", 
+          "LAU_Never ploughed/grazed slopes", "LAU_Never ploughed/mown", "LAU_Ploughed/grazed",
+          "LAU_Ploughed/mown", "LAU_Ploughed/mown and fertilized", 
+          "Large potted monoculture mesocosms, outside, soil from local meadow,  grazing and harvests emulated",
+          "Mature cultivated", "Monoculture", "Natural/C", "OTC", "OTC O3", "OTC field", 
+          "Open Top", "Open top chambers", "Other", "Outdoor cultivation in 30x30cm pots, standardized substrate",
+          "Outdoor cultivations (4 repititions) grown in 30x30cm pots with standardized substrate. All pot ...",
+          "PM", "PU", "Partially open overstory 90 days, seedling", "Planted trees", "Planted vines",
+          "Pot exp", "Pot-grown", "Pots outside", "Siemianice", "Undisturbed, seedling", 
+          "University of California Botanical Garden", "VER_permanent meadow mown and fertilized",
+          "ER_permanent meadows mown and fertilized", "WTC", "botanical garden environment",
+          "branch bag", "climate chamber", "climate chambers", "comm.garden.Spain", 
+          "common garden in growth containers with soil corresponding to seed origin", 
+          "common garden, understorey", "controlled environment", "controlled environment room", 
+          "cultivated", "disturbed soil treatment; coniferous forest", 
+          "disturbed soil treatment; deciduous alluvial forest", "disturbed soil treatment; fallow wet meadow",
+          "drought treatment", "dry season measurements (see also #659)", "experimental",
+          "experimental treatment", 
+          "experimental warming with open top chambers during the snow-free period, increasing daily mean  ...",
+          "experimental, in pots outside", "experimental, outside in pots", "field experiment",
+          "forest fertilization", "glasshouse, climate controlled", 
+          "glasshouse, plastic tubes 10cm diameter, 100 cm depth", "grassland common garden", "greenhouse",
+          "greenhouse - Northern Arizona University (standard controlled environment)", "growth chamber",
+          "growth-chamber", "growth_chamber", "hydroponic", "lab", "mesocosm", "mesocosm, 50l pots",
+          "mini-ecosystem", "natural environment, high warming +4C, preccipitation ambient",
+          "natural environment, high warming +4C, preccipitation ambient +50%", 
+          "natural environment, high warming +4C, preccipitation ambient -50%",
+          "natural environment, low warming +1.5C, preccipitation ambient",
+          "natural environment, low warming +1.5C, preccipitation ambient +50%", 
+          "natural environment, low warming +1.5C, preccipitation ambient -50%", 
+          "natural environment, medium warming +2.5C, preccipitation ambient",
+          "natural environment, medium warming +2.5C, preccipitation ambient +50%",
+          "natural environment, medium warming +2.5C, preccipitation ambient -50%",
+          "natural environment, no warming, preccipitation ambient +50%",
+          "natural environment, no warming, preccipitation ambient -50%",
+          "natural grassland, experimental nutrient NP addition", "nursery",
+          "nutrient addition experiment", "open-sided growth chamber", "open-top chamber",
+          "open-top chambers", "pot", "pots, outside in natural environment", "shade houses",
+          "smelter polluted environment", "water stress experiment", "water treatment", 
+          "whole-tree chamber", "plantation")), baseOn = ObservationID)
+
+tmp_unfiltered <- rtry_select_row(TRYdata1, DataID %in% 1961)
+
+tmp_unfiltered <- rtry_explore(tmp_unfiltered, DataID, DataName, OriglName, OrigValueStr, OrigUnitStr, StdValue, Comment, sortBy = OrigValueStr)
+
+try_ls_exp_hlth <- rtry_exclude(try_ls_exp, (DataID %in% 1961) & 
+                         (OrigValueStr %in% c("Dead")), baseOn = ObservationID)
+
+try_covariate <- try_filtered %>%
+  filter(is.na(TraitID))
+
+covariates <- unique(try_covariate$DataName) %>% as.data.frame()
+
+try_filtered <- rtry_remove_dup(try_ls_exp_hlth)
+
+tmp_unfiltered <- rtry_explore(try_filtered, DataID, DataName, TraitID, TraitName, ErrorRisk, sortBy = ErrorRisk)
+
+try_filtered <- rtry_exclude(try_filtered, ErrorRisk >= 3, baseOn = ObsDataID) 
+
+try_filtered <- try_filtered %>%
+  filter(AccSpeciesName %notin% c("unknown", "Herbaceous", "Graminoid", "grass", "Buxuxu", "Palm", "Tree", 
+  "Bamboo", "Shrub", "Vine", "forb", "Fern", "Pallida", "Birch", "Spruce", "Triticosecale", 
+  "Tachi", "Taxi", "Mid", "Geophyte", "Grasses", "Conifers", "Forest", "Muiraba", "Ucuubarana", 
+  "Jutai-mirim", "Amapai", "Amarelao", "Muiracatiara", "Janita", "Jutai-acu", "Muirapinima", 
+  "Jarana", "Louro", "Morototo", "Muirauba", "GUARUBARANA", "AROEIRA", "GUARIUBA", "MAMORANA", 
+  "URUCURANA", "QUINARANA", "CAFERANA", "ANARAI", "PITOMBA", "CHICUA", "POIZOROQUEIRA", 
+  "Quarubarana", "ANANI", "GOIABINHA", "ABIURANA", "PIQUIA", "ACHICHA", "SABOEIRO", "COCAO", 
+  "PARAPARA", "SUCUUBA", "URUAZEIRO", "MUIRAPICHONA", "AMADAI", "EMBAUBARANA", "INAJARANA", 
+  "MUIRATINGA", "LIMORANA", "ANDIROBARANA", "BABACU", "MUIRARANA", "CUNARIO", "GINJA", 
+  "ACARIQUARANA", "ARATAJILRANA", "TATAPIRIRICA", "QUARIQUARANA", "ACARIQUARA", "PUROI", 
+  "PARA", "ANDIROBA", "CARALLE", "ARATASIURANA", "PAMA", "CARAPAMAUBA", "PAPAROLA", "CARADANAUBA", 
+  "ROSADINHO", "JATAUBA", "BARBATINAO", "CUPUI", "CIIJIA", "SARDINHEIRA", "PASACINHEIRA", "AQUIQUI", 
+  "AMARELINHO", "CUNAREO", "CUNARE", "JINGA", "MACUCU", "EMBAUBA", "MURUPITA", "PITAICA", "PADAROLA", 
+  "CAJUI", "QUARIQUARA", "MUTUTI", "JENIPARANA", "INAJA", "AMAVAI", "GOIABARNA", "ABDILOBARANA", 
+  "MUIRARENGA", "PASARINHARA", "PATIA", "MUIRAPIRANGA", "ACHUA", "Pajurazinho", "QUATAQUACAUA", 
+  "BACABA", "MUUBA", "CUMAT", "BABTIMAO", "MAPARAJUBA", "UCHIRANA", "Bindweed", "Triticale", 
+  "Brassolaeliocattleya_x", "Moss")) %>%
+  separate(AccSpeciesName, into = c("genus", "sp"), sep = " ", remove = FALSE, extra = "merge")
+
+try_clean <- try_filtered %>%
+  mutate(OrigValueStr =  case_when(OrigValueStr == "c3" ~ "C3",
+                             OrigValueStr == "C3?" ~ "C3",
+                             OrigValueStr == "c4" ~ "C4",
+                             OrigValueStr == "C4?" ~ "C4",
+                             TRUE ~ OrigValueStr)) %>%
+  filter(DataID %notin% c(8178, 9780, 1629, 1739, 974, 2526, 2760, 2527, 2761, 
+                          9906, 2762, 9578, 9577, 9576, 9575, 9574, 3710, 2958, 
+                          9447, 8651, 8643, 8648, 8642, 8650, 8647, 8646, 8649, 
+                          8645, 8644, 2373, 2380, 2365, 2367, 2375, 2381, 3809, 
+                          3812, 3814, 3811, 3816, 225, 2082, 2142, 3990, 3991, 
+                          2412, 2413, 2414, 904, 1271, 9926, 9931, 27, 9898, 
+                          9899, 9900, 9901, 476, 2506, 829, 2499, 2500, 1027, 
+                          1028, 2311, 4142, 3974, 3979, 3980, 3978, 3976, 3975, 
+                          3977)) %>%
+  filter(TraitID %in% c(3, 4, 13, 14, 15, 18, 22, 24, 26, 27, 46, 47, 48, 53, 54, 
+                        59, 70, 71, 83, 89, 145, 146, 164, 246, 334, 785, 819, 839, 
+                        1047, 1080, 1181, 1256, 3106, 3113, 3117, 3588, 3801)) %>%
+  drop_na(StdValue) %>%
+  select(AccSpeciesName, TraitID, TraitName, StdValue) %>%
+  #mutate(AccSpeciesName = tolower(AccSpeciesName)) %>%
+  #mutate(AccSpeciesName = paste0(tools::toTitleCase(word(AccSpeciesName, 1)), " ", word(AccSpeciesName, 2)))
+  group_by(AccSpeciesName, TraitID, TraitName) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = TRUE))) %>%
+  ungroup() 
+
+try_tax <- try_filtered %>%
+  filter(DataID %in% c(846, 1422)) %>%
+  filter(AccSpeciesName %in% try_clean$AccSpeciesName)
+  select(AccSpeciesName, OrigValueStr, DataName) %>%
+  distinct() %>%
+  pivot_wider(values_from = "OrigValueStr", names_from = "DataName") %>%
+  filter(AccSpeciesName %in% not_included$AccSpeciesName)
+  
+try_species <- try_clean %>%
+  select(AccSpeciesName) %>%
+  distinct() %>%
+  mutate(try_species = "Yes")
+  
+try_tax_wf <- classification %>%
+  select(scientificName, family, genus) %>%
+  rename(AccSpeciesName = scientificName) %>%
+  left_join(try_species) %>%
+  filter(try_species == "Yes")
+
+not_included <- try_species %>%
+  filter(AccSpeciesName %notin% try_tax_wf$AccSpeciesName)
+
+abies <- classification %>%
+  filter(genus == "Abies")
+
+length(unique(try_tax$AccSpeciesName))
+length(unique(try_clean$AccSpeciesName))
+species_list <- try_clean %>%
+  filter(DataID %in% c(846, 1422))
+  select(AccSpeciesName) %>%
+  distinct() %>%
+  pull(AccSpeciesName)
+?lookup_table
+hierarchy <- lookup_table(species_list, by_species=TRUE, 
+                          family.tax = "plantlist", missing_action = "drop") %>%
+  rownames_to_column(var = "Species_name") %>%
+  arrange(Species_long) %>%
+  rowid_to_column("plant_id") %>%
+  rename(Name = Species_long) %>%
+  full_join(traits_clean) %>%
+  filter(Name %in% colnames(bergholz_veg))
+
+not_included <- try_clean %>%
+  select(AccSpeciesName) %>%
+  distinct() %>%
+  filter(AccSpeciesName %notin% hierarchy$Species_name) %>%
+  as.data.frame()
+
+tmp <- species_list %>%
+  filter(AccSpeciesName %in% c("ATROPA BELLA-DONNA", "Atropa Bella-Donna", "Atropa Bella-donna", "Atropa bella-donna"))
+
+sort(unique(try_clean$DataName))
+184826
+tmp <- try_clean %>%
+  filter(DataName == "Family")
+
+save(try_filtered,
+  file = "data/processed/try_filtered.RData")
+
+
+
+
+```
+
+
+```{r bergholz}
+load("~/0. PhD/0. Chapter I/data/processed/try_filtered.RData")
+
+bergholz_try <- try_filtered %>%
+  filter(AccSpeciesName %in% c(bergholz_species_final)) %>%
+  filter(LastName != "Bergholz") %>%
+  filter(TraitID %in% c(3117, 18, 3107, 3106, 47))
+
+
+tmp <- try_filtered %>%
+  filter(AccSpeciesName %in% c(bergholz_species_final)) %>%
+  filter(LastName != "Bergholz") %>%
+  filter(TraitID %in% c(3117, 18, 3107, 3106, 47)) 
+
+sort(unique(bergholz_try$AccSpeciesName))
+
+test <- try_filtered %>%
+  filter(SpeciesName %in% c("Anthemis tinctoria"))
+
+sort(unique(test$TraitID))
+
+tmp_unfiltered <- rtry_explore(bergholz_try, DataID, DataName, TraitID, SpeciesName, TraitName, sortBy = TraitID)
+
+wide <- rtry_select_col(bergholz_try, ObservationID, AccSpeciesID, AccSpeciesName, TraitID, TraitName, StdValue, UnitName)
+
+wide_temp <- rtry_trans_wider(wide, names_from = c(TraitID, TraitName, UnitName), values_from = c(StdValue), values_fn = list(StdValue = mean))
+
+
+
+wide_2 <- wide_temp %>%
+  select(-c(ObservationID, AccSpeciesID)) %>%
+  group_by(AccSpeciesName) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = TRUE))) %>%
+  ungroup()
+
+wide_2$AccSpeciesName
+```

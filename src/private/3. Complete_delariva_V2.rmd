@@ -1,0 +1,120 @@
+---
+title: "0.Preprocessing"
+author: "Jelyn Gerkema"
+date: "2023-06-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings2.R")
+source("src/functions.R")
+
+```
+
+## 1.Clean data
+
+
+### 1.1 De la Riva et al. 2015
+```{r clean data}
+
+riva_veg_cleantemp <- read_excel("data/raw/de la Riva et al. 2015/veg_data.xlsx") %>%
+  mutate_all(na_if, "-") %>%
+  mutate(across(Virgen_Upper:Villaviciosa_Lower, as.numeric)) %>%
+  replace(is.na(.), 0) %>%
+  select(-c(Family, `Life habit`, `Leaf habit`)) %>%
+  arrange(Species) %>%
+  pivot_longer(cols = 2:ncol(.), values_to = "cover", names_to = "Plot_code") %>%
+  rename(Name = Species) %>%
+  mutate(Name = recode(Name, "Cistus salvifolius" = "Cistus salviifolius" ))
+
+
+riva_veg <- read_excel("data/raw/de la Riva et al. 2015/veg_data.xlsx") %>%
+  mutate_all(na_if, "-") %>%
+  mutate(across(Virgen_Upper:Villaviciosa_Lower, as.numeric)) %>%
+  replace(is.na(.), 0) %>%
+  select(-c(Family, `Life habit`, `Leaf habit`)) %>%
+  arrange(Species) %>%
+  mutate(Species = recode(Species, "Cistus salvifolius" = "Cistus salviifolius" )) %>%
+  column_to_rownames(var = "Species") %>%
+  t() %>%
+  as.data.frame()
+
+
+riva_trait <- read_excel("data/raw/de la Riva et al. 2015/Dryad_database.xls") %>%
+  rename(Height = `Plant height (m)`,
+         LA = `Leaf size  (cm²)`,
+         LDMC = `LDMC        (g g¯¹)`,
+         SLA = `SLA              (m² Kg¯¹)`,
+         Leaf_chlor = `LChl (µg g¯¹)`,
+         Leaf_N = `LNC (%)`,
+         D13C = `δ 13C (‰)`,
+         StDMC = `SDMC       (g g¯¹)`,
+         WD = `WD                  (g cm¯³)`,
+         RDMC = `RDMC         (g g¯¹)`,
+         SRL = `SRL (m g¯¹)`,
+         Name = Species) %>%
+  mutate(Zone = recode(Zone, `Virgen Linares` = "Virgen")) %>%
+  mutate(Plot_code = paste0(Zone, "_", Plot)) %>%
+  select(-c(Zone, Plot, Country, Province, `Plant cover (m²)`, 
+            Latitude, Longitude)) %>%
+  select(order(colnames(.))) %>%
+  relocate(Plot_code, Name) %>%
+  mutate(Name = recode(Name, `Arbutus unedu` = "Arbutus unedo",
+                       `Myrtus Communis` = "Myrtus communis",
+                       `Pistacia letiscus`  = "Pistacia lentiscus",
+                       `Quecus cocifera`  = "Quercus coccifera",
+                       `Rubus ulmilifolius` = "Rubus ulmifolius",
+                       `Rubus umilifolius` = "Rubus ulmifolius",
+                       `Crataegus monogina`  = "Crataegus monogyna",
+                       `Phyllirea angustifolia` = "Phillyrea angustifolia",
+                       `Phyllirea latifolia` = "Phillyrea latifolia",
+                       `Pyrus bourgeana` = "Pyrus bourgaeana",
+                       `Cistus salvifolius` = "Cistus salviifolius")) %>%
+  full_join(riva_veg_cleantemp) %>%
+  group_by(Name) %>%
+  mutate(across(where(is.numeric), ~replace_na(., mean(., na.rm = TRUE)))) %>%
+  arrange(Name) %>%
+  select(-c(cover)) %>%
+  ungroup() %>%
+  mutate(D13C = D13C+abs(min(D13C))) %>%
+  mutate(D13C = D13C+0.00000000001)
+
+
+
+riva_trait_fd <- riva_trait 
+
+# Standardizing is done after the fd dataframe is made, otherwise the values are standardized twice
+#riva_trait <- riva_trait %>%
+ # mutate(across(where(is.numeric), ~ c(scale(., center = F)))) 
+
+
+traitlist <- sort(c("D13C", "Height", "LA",  "LDMC", "SLA", "Leaf_chlor", "Leaf_N", 
+                "StDMC", "WD", "RDMC", "SRL"))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+riva_output <- lst(input_veg = riva_veg, 
+                     input_veg_fd = riva_veg,
+                     input_trait = riva_trait,
+                     input_trait_fd = riva_trait_fd,
+                     cutoff_value = 0.8,
+                     trait_detail = "Plot",
+                     trait_information = trait_information,
+                     study_name = "Riva")
+
+save(riva_output,
+ file = "data/processed/riva_prep.RData")
+
+``` 
+
+
