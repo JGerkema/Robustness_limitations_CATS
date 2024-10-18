@@ -1,0 +1,236 @@
+---
+title: "Biomes_map"
+author: "Jelyn Gerkema"
+date: "2024-07-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r set up}
+
+#devtools::install_github("valentinitnelav/plotbiomes")
+
+source("src/settings.R")
+
+coor <- read_excel("data/raw/Coordinates_studies.xlsx") %>%
+  drop_na(Format)
+
+dms_to_dd <- function(dms_string) {
+  # Extract degrees using regex
+  degrees <- as.numeric(str_extract(dms_string, "\\d+(?=°)"))
+  
+  # Extract minutes; assume minutes are present in all cases
+  minutes <- as.numeric(str_extract(dms_string, "(?<=°)\\d+(?=′)"))
+  
+  # Extract seconds; handle missing seconds by setting default to 0
+  seconds <- ifelse(str_detect(dms_string, "′′"), 
+                    as.numeric(str_extract(dms_string, "(?<=′)\\d+\\.\\d+(?=′′)")), 
+                    as.numeric(str_extract(dms_string, "(?<=′)\\d+(?=′)")))
+  
+  # Default seconds to 0 if not found
+  seconds <- ifelse(is.na(seconds), 0, seconds)
+  
+  # Convert to Decimal Degrees
+  decimal_degrees <- degrees + (minutes / 60) + (seconds / 3600)
+  
+  # Check for the direction and adjust sign accordingly
+  if (str_detect(dms_string, "S") || str_detect(dms_string, "W")) {
+    decimal_degrees <- -decimal_degrees
+  }
+  
+  return(decimal_degrees)
+}
+
+# Apply the function to the dataframe
+df <- coor %>% 
+  filter(Format == "DMS") %>%
+  mutate(Longitude = sapply(Longitude, dms_to_dd)) %>%
+  mutate(Latitude = sapply(Latitude, dms_to_dd)) 
+
+new_coor <- coor %>%
+  filter(Format == "DD") %>%
+  mutate(Longitude =  as.numeric(str_remove(Longitude, "°[NSWE]$"))) %>%
+  mutate(Latitude =  as.numeric(str_remove(Latitude, "°[NSWE]$"))) %>%
+  bind_rows(df) %>%
+  relocate(Longitude, Latitude)
+
+tempdir <- "/bioclim"
+
+wc <- geodata::worldclim_global("bio", res=2.5, ".")
+
+wc <- raster::extract(wc, new_coor[,1:2])
+
+wc <-  wc %>%
+    rename(MAT = wc2.1_2.5m_bio_1, MAP = wc2.1_2.5m_bio_12) %>%
+  select(MAT, MAP) %>%
+  mutate(Dataset = new_coor$Dataset) 
+
+new_coor_complete <- new_coor %>%
+  mutate(MAT = as.numeric(MAT),
+         MAP = as.numeric(MAP)) %>%
+  mutate(MAT = coalesce(MAT, wc$MAT),
+    MAP = coalesce(MAP, wc$MAP)) %>%
+  rename(SiteLongitude = Longitude,
+           SiteLatitude  = Latitude) 
+
+df <- df_peak <- new_coor_complete
+```
+
+```{r map}
+
+###*************************************************
+#### Create plot themes, symbology and scaling  ----
+###*************************************************
+theme_plots <- function() {
+  theme_bw() +
+    theme(
+      text = element_text(family = "Helvetica"),
+      axis.text = element_text(size = 8, color = "black"),
+      axis.title = element_text(size = 10, color = "black"),
+      axis.line.x = element_line(size = 0.3, color = "black"),
+      axis.line.y = element_line(size = 0.3, color = "black"),
+      axis.ticks = element_line(size = 0.3, color = "black"),
+      panel.border = element_blank(),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      panel.grid.minor.y = element_blank(),
+      panel.grid.major.y = element_blank(),
+      plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), units = , "cm"),
+      plot.title = element_text(
+        size = 10,
+        vjust = 1,
+        hjust = 0.5,
+        color = "black"
+      ),
+      legend.text = element_text(size = 10, color = "black"),
+      legend.title = element_text(size = 10, color = "black"),
+      legend.position = c(0.9, 0.9),
+      legend.key.size = unit(0.9, "line"),
+      legend.background = element_rect(
+        color = "black",
+        fill = "transparent",
+        size = 2,
+        linetype = "blank"
+      )
+    )
+}
+
+
+
+### *************************************************
+### 1a. Global Map ----
+# Create global map                                                             # Inspired by https://www.r-spatial.org/r/2018/10/25/ggplot2-sf.html
+      coastlines <- ne_coastline(scale = "medium", returnclass = "sf")
+      countries <- ne_countries(scale = "medium", returnclass = "sf")
+
+    # Create sample sites as SF object
+      # Create dataframe of site locations
+        sites <- data.frame(df_peak$SiteLongitude, df_peak$SiteLatitude)
+
+      # Keep only distinct site locations and rename columns
+        sites <- sites %>%
+          distinct() %>%
+          rename(
+            longitude = df_peak.SiteLongitude,
+            latitude = df_peak.SiteLatitude)
+
+      # Convert to SF object
+        sites_sf <- st_as_sf(sites, coords = c("longitude", "latitude"),
+                       crs = 4326, agr = "constant")
+
+    # Create global map
+        (global_map <- ggplot(data = countries) +
+          geom_sf(colour = "grey90", fill = "grey90") +  # add continents
+          geom_sf(data = coastlines, colour = "black") +  # add coastlines outline
+          geom_sf(data = sites_sf, size = 2, shape = 21, fill = "red") +  # Add sampling sites to plot
+          coord_sf(crs = st_crs("ESRI:54030"))+  # Reprojects all layers already drawn to the Robinson projection.
+          theme_bw()
+          )
+
+### 1b Climate Space ----
+ # Whittaker polygons after R.H. Whittaker. 1975. Communities and Ecosystems. 2d ed. Macmillan New York
+    df$MAP_cm <- df$MAP/10                                      # Create new column with MAP in cm rather than mm.
+
+  # Create modified colour palette (with forests in grey)
+  # Create table of biome data
+      biomes_tbl <- data.frame(biome_id = 1:9,
+                               biome = c( "Temperate rain forest",
+                                           "Tundra",
+                                          "Tropical rain forest",
+                                          "Temperate seasonal forest",
+                                         "Tropical seasonal forest/savanna",
+                                         "Woodland/shrubland",
+                                         "Temperate grassland/desert",
+                                         "Subtropical desert",
+                                         "Boreal forest"
+                                        ))
+  # Manually specify biome colour palette
+      biome_colours <- c("grey72", #"#317A22"
+                        "grey80", 
+                        "grey88",
+                        "#A5C790",
+                        "#e6da00",
+                        "#DCBB50",
+                        "#FCD57A",
+                        "#D16E3F",
+                        "#C1E1DD")
+      
+      
+         biome_colours <- c("grey80",
+                            "grey88",
+                            "#54923D",                         
+                            "#A5C790",
+                        "#e6da00",
+                        "#DCBB50",
+                        "#FCD57A",
+                        "#D16E3F",
+                        "#C1E1DD")
+         
+      # scales::show_col(biome_colours)  # Show colours
+
+  # Add biome names to colour palette
+      names(biome_colours) <- biomes_tbl$biome
+
+  # Create plot with custom colour palette
+      (Whittaker_plot <- ggplot(data = df,
+                               aes(x = MAT,
+                                   y = MAP_cm)) +
+          theme_plots() +
+          coord_cartesian(expand=FALSE) +
+          geom_polygon(data = Whittaker_biomes,
+                       aes(x    = temp_c,
+                           y    = precp_cm,
+                           fill = biome),
+                       colour = "gray98", size   = 0.5) +                             # adjust polygon borders
+          scale_fill_manual(name   = "Whittaker biomes",
+                            breaks = names(biome_colours),
+                            labels = names(biome_colours),
+                            values = biome_colours) +
+          geom_point() +
+          theme(legend.position = c(0.34, 0.736),
+                legend.text = element_text(size = 9.6)) +
+          # theme(legend.position = c(0.3, 0.736),
+                # legend.text = element_text(size = 7.8, face = 'bold')) +
+          labs(x = expression("Mean Annual Temperature " (degree~C)),
+               y = expression("Mean Annual Precipitation (cm yr"^"-1"*")"))
+          )
+
+
+
+### Combine Figure 1 parts a and b using the patchwork package
+(figure1 <- global_map / Whittaker_plot +
+    plot_annotation(tag_levels = 'A') &
+    theme(plot.tag.position = c(0.0, 0.97)  # Control horizontal and vertical position of panel labels
+          )
+  )
+
+# Export figure
+png("figures/biomes.png",
+    width = 12, height = 16, units = 'cm', res = 500)         # Save plot
+plot(figure1)
+dev.off()
+
+``` 

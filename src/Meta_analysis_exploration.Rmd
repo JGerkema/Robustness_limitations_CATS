@@ -1,0 +1,868 @@
+---
+title: "Combine everything"
+author: "Jelyn Gerkema"
+date: "2023-10-20"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 0. Set up
+```{r set up}
+source("src/settings.R")
+source("src/functions_custom.R")
+
+```
+
+## 1. Load data
+```{r load data}
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/kober_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/buzzard_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/castro_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/chalmandrier_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/choler_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/eallonardo_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/frenette_missour_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/frenette_enjil_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/frenette_lamjalil_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/frenette_maatarka_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/frenette_tirnest_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/jaschke_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/kembel_kinsella_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/kembel_onefour_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/liane_sweden_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/liane_finland_1_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/liane_finland_2_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/liane_russia_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/marteinsdottir_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/raevel_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/riva_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/rolhauser_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/gonzalez_ma_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/gonzalez_ch_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/gonzalez_ca_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/gonzalez_za_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/gonzalez_pe_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/gonzalez_co_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/gonzalez_en_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/gonzalez_pa_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/standen_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/makelele_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/jager_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/osuri_control_prep.RData")
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/osuri_fragment_prep.RData")
+
+
+load("~/0. PhD/Robustness_limitations_CATS/data/processed/try_final106.RData")
+
+# load the imputed data
+trait_imp <- read_csv("data/processed/trait_imp_final126.csv") %>%
+  select(-c(`...1`)) %>%
+  rename(Name = wfo_match)
+
+# WFO backbone from december 2023
+classification <- read_delim("data/raw/classification202312.csv", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE) %>%
+  mutate(scientificName = str_replace_all(scientificName, "  ", " "))
+
+# File with new trait names
+trait_names_df <- data.frame(
+  "TraitName" = c(
+    "Leaf area (in case of compound leaves: leaflet, undefined if petiole is in- or excluded)",
+    "Bark thickness",
+    "Leaf carbon (C) content per leaf dry mass",
+    "Leaf carbon isotope signature (delta 13C)",
+    "Leaf chlorophyll content per leaf dry mass",
+    "Leaf nitrogen (N) content per leaf dry mass",
+    "Leaf phosphorus (P) content per leaf dry mass",
+    "Leaf thickness",
+    "Plant height vegetative",
+    "Seed dry mass",
+    "Plant lifespan (longevity)",
+    "Leaf area per leaf dry mass (specific leaf area, SLA or 1/LMA): undefined if petiole is in- or excluded",
+    "Leaf density (leaf tissue density, leaf dry mass per leaf volume)",
+    "Leaf carbon/nitrogen (C/N) ratio",
+    "Leaf dry mass per leaf fresh mass (leaf dry matter content, LDMC)",
+    "Litter nitrogen (N) content per litter dry mass",
+    "Litter phosphorus (P) content per litter dry mass",
+    "Photosynthesis rate per leaf area",
+    "Seed length",
+    "Stem specific density (SSD, stem dry mass per stem fresh volume) or wood density",
+    "Leaf respiration rate in the dark per leaf area",
+    "Root diameter",
+    "Root porosity (fraction of root aerenchyma air space)",
+    "Root length per root dry mass (specific root length, SRL)",
+    "Root dry mass per root fresh mass (root dry matter content; RDMC)",
+    "Stem dry mass per stem fresh mass (stem dry matter content, StDMC)"
+  ),
+  "Abbreviation" = c(
+    "LA", "Bark_thickness", "Leaf_C", "D13C", "Leaf_chlor", "Leaf_N", "Leaf_P", "Leaf_thickness",
+    "Height", "SM", "PLS", "SLA", "Leaf_density", "Leaf_CN", "LDMC", "Litter_N",
+    "Litter_P", "Photo_rate", "Seed_length", "WD", "Leaf_resp", "Root_diam", "Root_poros", "SRL",
+    "RDMC", "StDMC"
+  )
+)
+
+# File with new dataset and grouped study names
+study_names_df <- data.frame(
+  "study" = c("Buzzard", "Castro", "Chalmandrier", "Choler", "Eallonardo", "Frenette_enjil", "Frenette_lamjalil", "Frenette_maatarka", "Frenette_missour", "Frenette_tirnest", "Gonzalez_ca", "Gonzalez_ch", "Gonzalez_co", "Gonzalez_en", "Gonzalez_ma", "Gonzalez_pa", "Gonzalez_pe", "Gonzalez_za", "Jager", "Jäschke", "Kembel_kinsella", "Kembel_onefour", "kober", "Liane_finland_1", "Liane_finland_2", "Liane_russia", "Liane_sweden", "Makelele", "Marteinsdottir", "Osuri_control", "Osuri_fragment", "Raevel", "Riva", "Rolhauser", "Standen"),
+  "new_study_name" = c("Buzzard", "Castro", "Chalmandrier", "Choler", "Eallonardo", "Frenette (Enjil)", 
+  "Frenette (Lamjalil)", "Frenette (Maatarka)", "Frenette (Missour)", "Frenette (Tirnest)", 
+  "Gonzalez (Ca)", "Gonzalez (Ch)", "Gonzalez (Co)", "Gonzalez (En)", "Gonzalez (Ma)", 
+  "Gonzalez (Pa)", "Gonzalez (Pe)", "Gonzalez (Za)", "Jager", "Jäschke", 
+  "Kembel (Kinsella)", "Kembel (Onefour)", "Kober", "Liane (Finland 1)", "Liane (Finland 2)", 
+  "Liane (Russia)", "Liane (Sweden)", "Makelele", "Marteinsdottir", "Osuri (Control)", 
+  "Osuri (Fragment)", "Raevel", "Riva", "Rolhauser", "Standen")) %>%
+  separate(new_study_name, into = "study_group", sep = " ", extra = "drop", remove = F)
+
+# The trait_imp file contains the imputed trait values as done in the dodo science 
+# environment. The data is on individual level. Here, the an average values for 
+# each species are calculated and the long trait names are abbreviated so that they
+# match the trait names in the collected datasets. 
+# The `Name` column contains the wfo matches to the original try species names
+trait_imp_specieslvl <- trait_imp %>%
+  group_by(Name, acceptedNameUsageID, genus, family, order) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  ungroup() %>%
+  rename(LA = "Leaf area (in case of compound leaves: leaflet, undefined if petiole is in- or excluded)",
+         Bark_thickness = "Bark thickness",
+         Leaf_C = "Leaf carbon (C) content per leaf dry mass",
+         D13C = "Leaf carbon isotope signature (delta 13C)",
+         Leaf_chlor = "Leaf chlorophyll content per leaf dry mass",
+         Leaf_N = "Leaf nitrogen (N) content per leaf dry mass",
+         Leaf_P = "Leaf phosphorus (P) content per leaf dry mass",
+         Leaf_thickness = "Leaf thickness",
+         Height = "Plant height vegetative",
+         SM = "Seed dry mass",
+         PLS = "Plant lifespan (longevity)",
+         SLA = "Leaf area per leaf dry mass (specific leaf area, SLA or 1/LMA): undefined if petiole is in- or excluded",
+         Leaf_density = "Leaf density (leaf tissue density, leaf dry mass per leaf volume)",
+         Leaf_CN = "Leaf carbon/nitrogen (C/N) ratio",
+         LDMC = "Leaf dry mass per leaf fresh mass (leaf dry matter content, LDMC)",
+         Litter_N = "Litter nitrogen (N) content per litter dry mass",
+         Litter_P = "Litter phosphorus (P) content per litter dry mass",
+         Photo_rate = "Photosynthesis rate per leaf area",
+         Seed_length = "Seed length",
+         WD = "Stem specific density (SSD, stem dry mass per stem fresh volume) or wood density",
+         Leaf_resp  = "Leaf respiration rate in the dark per leaf area",
+         Root_diam = "Root diameter",
+         Root_poros = "Root porosity (fraction of root aerenchyma air space)",
+         SRL = "Root length per root dry mass (specific root length, SRL)",
+         RDMC  = "Root dry mass per root fresh mass (root dry matter content; RDMC)",
+         StDMC =  "Stem dry mass per stem fresh mass (stem dry matter content, StDMC)")
+
+trait_imp_genuslvl <- trait_imp_specieslvl %>%
+  select(-c(Name, acceptedNameUsageID, family, order, ObservationID)) %>%
+  group_by(genus) %>%
+  summarise(across(where(is.numeric), mean)) %>%
+  ungroup() %>%
+  rename(Name = genus)
+
+# This file is the same contains the average trait values for each species calculated
+# from only the original data. This file does not contain imputed values. 
+traits_not_imp_specieslvl <- try_traits_tax_final %>%
+  select(c(wfo_match, genus, family, order, TraitName, StdValue, acceptedNameUsageID)) %>%
+  rename(Name = wfo_match) %>%
+  group_by(Name, TraitName) %>%
+  summarise(across(where(is.numeric), ~mean(., na.rm = T))) %>%
+  ungroup() %>%
+  mutate(TraitName = case_when(
+  TraitName %in% trait_names_df$TraitName ~ trait_names_df$Abbreviation[match(TraitName,
+  trait_names_df$TraitName)],
+  TRUE ~ TraitName))
+  
+  
+#save(trait_imp_specieslvl, trait_imp_genuslvl,
+ #file = "data/processed/trait_imp_species_genus126.RData")
+
+
+
+#load("~/0. PhD/Robustness_limitations_CATS/data/processed/trait_imp_species_genus126.RData")
+
+```
+
+```{r list with all data}
+
+# This list contains all datasets except for: gonazalez_co_output, gonzalez_ch_output,
+# gonzalez_ca_output, gonzalez_pe_output, gonzalez_pa_output and osuri_fragment_output.
+# These sites are removed from the analysis because they either have the same or less
+# species than number of traits, or because the trait coverage at species level
+# in the metacommunity was below 60%. 
+data_input_list_save <-  lst(gonzalez_ma_output, kembel_kinsella_output, kembel_onefour_output,
+                        frenette_missour_output,
+                        frenette_enjil_output, frenette_lamjalil_output,
+                        frenette_maatarka_output, frenette_tirnest_output,
+                          gonzalez_za_output,  
+                        gonzalez_en_output,  
+                        osuri_control_output, buzzard_output,
+                        castro_output, chalmandrier_output, choler_output, 
+                        eallonardo_output, kober_output, 
+                        jager_output, jaschke_output,  
+                        liane_sweden_output, liane_finland1_output, liane_finland2_output,  
+                        liane_russia_output, makelele_output, marteinsdottir_output, 
+                        raevel_output, riva_output, 
+                        standen_output, rolhauser_output)
+
+
+
+# This list contains all datasets, including the ones that are not analyzed with CATS.
+# They are included here in order to generate metadata tables and the coverage figure 
+# in the supplementary material. 
+data_input_list <-  lst(kembel_kinsella_output, kembel_onefour_output,
+                        frenette_missour_output,
+                        frenette_enjil_output, frenette_lamjalil_output,
+                        frenette_maatarka_output, frenette_tirnest_output,
+                        gonzalez_ma_output, gonzalez_ch_output, gonzalez_ca_output, gonzalez_co_output,
+                        gonzalez_za_output, gonzalez_pe_output, 
+                        gonzalez_en_output, gonzalez_pa_output, 
+                        osuri_control_output, osuri_fragment_output, buzzard_output,
+                        castro_output, chalmandrier_output, choler_output, 
+                        eallonardo_output, kober_output, 
+                        jager_output, jaschke_output,  
+                        liane_sweden_output, liane_finland1_output, liane_finland2_output,  
+                        liane_russia_output, makelele_output, marteinsdottir_output, 
+                        raevel_output, riva_output, 
+                        standen_output, rolhauser_output)
+
+```
+
+```{r extract species names}
+
+#Here, all species names from trait and vegetation data in the collected datasets are extracted
+
+output_species <- data.frame() 
+
+for(i in 1:length(data_input_list)){
+  
+  
+  input <- data_input_list[[i]]
+  
+   species_traits <- input[["input_trait"]] %>% 
+   as.data.frame() %>%
+   select(Name) %>%
+   mutate(study = input[["study_name"]]) %>%
+   distinct()
+
+  species <- colnames(input[["input_veg"]]) %>% 
+  as.data.frame() %>%
+  rename(Name = ".") %>%
+  mutate(study = input[["study_name"]]) %>%
+  bind_rows(species_traits) %>%
+  distinct() 
+  
+  output_species <- bind_rows(output_species, species)
+  
+  
+}
+
+# These are the species that do not have a direct match with the names in the imputed data
+excluded <- output_species %>%
+  filter(Name %notin% trait_imp_specieslvl$Name)  %>%
+  rename(Orig_name = Name) 
+
+
+# These are the species that are not included but do have a match which is not a synonym
+excluded_not_synonyms <- classification %>%
+  filter(scientificName %in% excluded$Orig_name) %>%
+  select(scientificName, acceptedNameUsageID, taxonomicStatus, nomenclaturalStatus) %>%
+  filter(taxonomicStatus != "Synonym")
+
+select_matches <- classification %>%
+  filter(scientificName %in% excluded$Orig_name) %>%
+  select(scientificName, acceptedNameUsageID, taxonomicStatus, nomenclaturalStatus) %>%
+  drop_na(acceptedNameUsageID) %>% #select the synonyms
+  filter(scientificName %notin% excluded_not_synonyms$scientificName) %>%
+  rename(Orig_name = scientificName) %>%
+  distinct() %>%
+  filter(acceptedNameUsageID %notin% c("wfo-0000845609",
+                                       "wfo-0000855460",
+                                       "wfo-0001285367",
+                                       "wfo-0000871854",
+                                       "wfo-0000871222",
+                                       "wfo-0000288166",
+                                       "wfo-0000199006",
+                                       "wfo-0000198960",
+                                       "wfo-0000902014",
+                                       "wfo-0000881302",
+                                       "wfo-0001340659")) 
+# These species have more than one synonym match, 
+# duplicates are removed based on nomenclaturalStatus
+
+
+multiple <- select_matches %>%
+  group_by(Orig_name) %>%
+  filter(n() > 1)
+
+new_names_synonyms <- classification %>%
+  filter(taxonID %in% select_matches$acceptedNameUsageID) %>%
+  select(scientificName, taxonID) %>%
+  rename(acceptedNameUsageID = taxonID) %>%
+  left_join(select_matches) %>%
+  select(-c(nomenclaturalStatus, taxonomicStatus)) %>%
+  distinct() %>%
+  group_by(Orig_name) %>%
+  filter(n() == 1) %>%
+  ungroup() %>%
+  filter(Orig_name %notin% c("Randia subcordata", "Typha glauca", "Eruca sativa", 
+                             "Quercus corrugata", "Fraxinus dubia",
+                             "Saussurea superba", "Cassine glauca", "Smilacina racemosa")) %>% 
+  # These new names exists already in their respective datasets
+  left_join(excluded) %>%
+  rename(Name = scientificName) %>%
+  group_by(Name, study) %>%
+  filter(n()==1) %>%
+  ungroup()
+    #Some synonym names are coupled to the same accepted species within one study
+
+#These are all the species that had a match with the TRY database in the end.
+total_included_species_list <- output_species %>%
+  filter(Name %notin% new_names_synonyms$Orig_name) %>%
+  bind_rows(new_names_synonyms)
+
+```
+
+
+#Table A1 and Table A2. 
+```{r metadata study - traits_na - RMSE}
+
+traits_na <- traits_rmse <- data_summary_species <- data_summary_genus <-  data.frame()
+
+for(i in 1:length(data_input_list)){
+  
+  dataset <- data_input_list[[i]]
+  
+  input_veg = dataset[["input_veg"]]
+  input_veg_fd = dataset[["input_veg_fd"]]
+  input_trait = dataset[["input_trait"]]  
+  input_trait_fd = dataset[["input_trait_fd"]]
+  trait_detail = dataset[["trait_detail"]]
+  trait_information = dataset[["trait_information"]]
+  study_name = dataset[["study_name"]]
+  
+  # New species names based on the WFO backbone. 
+  extract <- new_names_synonyms %>%
+    filter(study == study_name)
+
+# These traits were present in some of the datasets but no TRY data was available
+not_included_traits <- c("Leaf_angle", "Photo_path", "Root_density", "Lateral_spread",
+                         "Resprout", "Bark_thickness_rel", "Rhizome", "Stem_emerg",
+                         "ShootDMC", "Leaf_shape", "twFWC", "FWC")
+
+traits_orig <- dataset[["trait_information"]][["traitlist"]]
+
+traits_filtered <- traits_orig[traits_orig %notin% not_included_traits]  
+
+traitlist <- sort(c(traits_filtered))
+cwm_names <- paste0(traitlist, "_cwm")
+cwv_names <- paste0(traitlist, "_cwv")
+
+trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+# Subsitute old species with new WFO names
+if(nrow(extract) > 0){
+  
+  input_veg <- input_veg %>%
+    rename(!!!setNames(extract$Orig_name, extract$Name)) %>%
+    select(order(colnames(.)))
+  
+  input_trait <- input_trait %>%
+    mutate(Name = case_when(
+      Name %in% extract$Orig_name ~ extract$Name[match(Name, extract$Orig_name)],
+      TRUE ~ Name)) %>%
+    arrange(Name)
+}
+##
+  if(trait_detail == "Study"){
+    
+    input_trait <- input_trait %>%
+      select(Name, all_of(traits_filtered))
+    
+    input_trait_genus <- input_trait %>%
+      separate(Name, into = c("Name"), extra = "drop", sep = " ") %>%
+      group_by(Name) %>%
+      summarise(across(where(is.numeric), mean)) %>%
+      ungroup() %>%
+      filter(Name %in% trait_imp_genuslvl$Name)
+    
+    input_trait_genus <- input_trait_genus %>%
+      mutate(across(where(is.numeric), ~c(scale(., center = F))))
+    
+    input_trait <- input_trait %>%
+      mutate(across(where(is.numeric), ~ c(scale(., center = F))))  %>%
+      filter(Name %in% trait_imp_specieslvl$Name)
+
+  } else{
+    input_trait <- input_trait %>%
+      select(Name, Plot_code, all_of(traits_filtered))
+    
+    input_trait_genus <- input_trait %>%
+      separate(Name, into = c("Name"), extra = "drop", sep = " ") %>%
+      group_by(Name, Plot_code) %>%
+      summarise(across(where(is.numeric), mean)) %>%
+      ungroup() %>%
+      filter(Name %in% trait_imp_genuslvl$Name)
+    
+    input_trait_genus <- input_trait_genus %>%
+      mutate(across(where(is.numeric), ~c(scale(., center = F))))
+    
+    input_trait <- input_trait %>%
+      mutate(across(where(is.numeric), ~ c(scale(., center = F))))  %>%
+      filter(Name %in% trait_imp_specieslvl$Name)
+    
+  }
+  
+  input_veg_genus <- input_veg %>%
+    t() %>%
+    as.data.frame() %>%
+    rownames_to_column("Species") %>%
+    separate(Species, into = c("Name"), extra = "drop", sep = " ") %>%
+    group_by(Name) %>%
+    summarise(across(where(is.numeric), sum)) %>%
+    ungroup() %>%
+    column_to_rownames("Name") %>%
+    t()
+  
+
+input_processed_orig <-  cats_preparation(input_veg = input_veg, 
+                                          input_trait = input_trait,
+                                          cutoff_value = 0.6,
+                                          trait_detail = trait_detail,
+                                          trait_information = trait_information)
+
+input_processed_orig_genus <- cats_preparation(input_veg = input_veg_genus, 
+                                      input_trait = input_trait_genus,
+                                      trait_information = trait_information, 
+                                      cutoff_value = 0.6, 
+                                      trait_detail = trait_detail)
+##### Meta data summary
+
+n_plot_before <- nrow(input_processed_orig[["relative_abundances"]][["matrix"]])
+
+n_plot_after <- nrow(input_processed_orig[["relative_abundances"]][["matrix4traits_prop"]])
+
+meta_size <- ncol(input_processed_orig[["relative_abundances"]][["matrix4traits_prop"]])
+
+regional_trait_coverage <- input_processed_orig[["relative_abundances"]][["matrix"]] %>% 
+  as.data.frame() %>%
+  summarise(across(where(is.numeric), ~ sum(.))) %>%
+  t() %>%
+  as.data.frame() %>%
+  mutate(Total_cover = rowSums(.)) %>%
+  select(Total_cover) %>%
+  filter(Total_cover != 0) %>%
+  mutate(`Coverage meta-community (%)` = (Total_cover / sum(Total_cover))*100) %>%
+  rownames_to_column(var = "Name") %>%
+  filter(Name %in% input_trait$Name) %>%
+  select(Name, `Coverage meta-community (%)`) %>%
+  summarise(across(where(is.numeric), ~sum(.))) %>%
+  mutate(Dataset = dataset[["study_name"]])
+
+
+plot_count_species <- bind_cols(`Plots (n)` = n_plot_before, 
+                        `Plots after (n)` =  n_plot_after,
+                        Dataset = dataset[["study_name"]],
+                        `Trait detail`  = dataset[["trait_detail"]],
+                        `Traits (n)` = length(traits_filtered),
+                        `Species (n)` = meta_size) %>%
+  full_join(regional_trait_coverage) 
+
+###### 
+
+n_plot_before <- nrow(input_processed_orig_genus[["relative_abundances"]][["matrix"]])
+
+n_plot_after <- nrow(input_processed_orig_genus[["relative_abundances"]][["matrix4traits_prop"]])
+
+meta_size_genus <- ncol(input_processed_orig_genus[["relative_abundances"]][["matrix4traits_prop"]])
+
+regional_trait_coverage <- input_processed_orig_genus[["relative_abundances"]][["matrix"]] %>% 
+  as.data.frame() %>%
+  summarise(across(where(is.numeric), ~ sum(.))) %>%
+  t() %>%
+  as.data.frame() %>%
+  mutate(Total_cover = rowSums(.)) %>%
+  select(Total_cover) %>%
+  filter(Total_cover != 0) %>%
+  mutate(`Coverage meta-community (%)` = (Total_cover / sum(Total_cover))*100) %>%
+  rownames_to_column(var = "Name") %>%
+  filter(Name %in% input_trait_genus$Name) %>%
+  select(Name, `Coverage meta-community (%)`) %>%
+  summarise(across(where(is.numeric), ~sum(.))) %>%
+  mutate(Dataset = dataset[["study_name"]])
+
+
+plot_count_genus <- bind_cols(`Plots (n)` = n_plot_before, 
+                        `Plots after (n)` =  n_plot_after,
+                        Dataset = dataset[["study_name"]],
+                        `Trait detail`  = dataset[["trait_detail"]],
+                        `Genera (n)` = meta_size_genus) %>%
+  full_join(regional_trait_coverage) 
+
+##### Percentage missing data
+
+# This selects the species included in the analyses after processing the vegetation 
+# data, that have data in the try database when the imputed values are EXCLUDED.
+try_traits <- traits_not_imp_specieslvl %>%
+  filter(TraitName %in% traitlist) %>%
+  filter(Name %in% colnames(input_processed_orig[["relative_abundances"]][["matrix4traits_prop"]])) %>%
+  pivot_wider(names_from = Name, values_from = StdValue)
+
+missing_species <- colnames(input_processed_orig[["relative_abundances"]][["matrix4traits_prop"]]) %>%
+  as.data.frame() %>% 
+  filter(. %notin% colnames(try_traits)) %>%
+  column_to_rownames(".") %>% t() %>%
+  as.data.frame()
+
+if(ncol(missing_species) >0){
+  for(i in 1:nrow(try_traits)){
+    missing_species[i,] <- NA
+  }
+  try_traits <- bind_cols(try_traits, missing_species)
+}
+
+try_traits <- try_traits %>%
+  mutate(na_count = rowSums(is.na(.)),
+         total_count = ncol(.) - 1) %>%
+  select(TraitName, na_count, total_count) %>%
+  mutate(study = study_name) 
+
+missing_traits <- traitlist %>% as.data.frame() %>%
+  filter(. %notin% try_traits$TraitName) %>%
+  rename(TraitName = ".")
+
+# Add missing entries to dataframe
+if (nrow(missing_traits) > 0) {
+  new_rows <- data.frame(TraitName = missing_traits, 
+                         na_count = unique(try_traits$total_count),
+                         total_count = unique(try_traits$total_count),
+                         study = study_name)
+  
+  try_traits <- rbind(try_traits, new_rows)
+}
+
+##### RMSE TRY vs. Original data, imputed data included. 
+traits_try2 <- trait_imp_specieslvl %>% 
+  select(c(Name, traits_filtered)) %>%
+  filter(Name %in% colnames(input_processed_orig[["relative_abundances"]][["matrix4traits_prop"]])) %>%
+  filter(Name %in% input_trait$Name) %>%
+  pivot_longer(cols = 2:ncol(.), names_to = "TraitName", values_to = "Try_values")
+
+if(trait_detail == "Study"){
+  traits_try_orig <- input_trait %>%
+    select(Name, all_of(traits_filtered)) %>%
+    pivot_longer(cols = 2:ncol(.), names_to = "TraitName", values_to = "Orig_values") %>%
+    filter(Name %in% traits_try2$Name) %>%
+    full_join(traits_try2)%>%
+    mutate(study = study_name)
+} else {
+  traits_try_orig <- input_trait %>%
+    select(Name, Plot_code, all_of(traits_filtered)) %>%
+    filter(Plot_code %in% rownames(input_processed_orig[["relative_abundances"]][["matrix4traits_prop"]])) %>%
+    pivot_longer(cols = 3:ncol(.), names_to = "TraitName", values_to = "Orig_values") %>%
+    filter(Name %in% traits_try2$Name) %>%
+    full_join(traits_try2) %>%
+    mutate(study = study_name)
+  
+}
+
+traits_na <- bind_rows(traits_na, try_traits)
+traits_rmse <- bind_rows(traits_rmse, traits_try_orig)
+data_summary_species <- bind_rows(data_summary_species, plot_count_species)
+data_summary_genus <- bind_rows(data_summary_genus, plot_count_genus)
+
+}
+
+data_summary_species <- data_summary_species %>%
+   mutate(Dataset = case_when(Dataset %in% study_names_df$study ~ 
+                       study_names_df$new_study_name[match(Dataset,
+                       study_names_df$study)], TRUE ~ Dataset)) %>%
+  relocate(Dataset, `Trait detail`, `Traits (n)`, `Species (n)`, `Plots (n)`, `Plots after (n)`, 
+           `Coverage meta-community (%)` ) %>%
+  arrange(Dataset)
+  
+data_summary_genus <- data_summary_genus %>%
+   mutate(Dataset = case_when(Dataset %in% study_names_df$study ~ 
+                       study_names_df$new_study_name[match(Dataset,
+                       study_names_df$study)], TRUE ~ Dataset)) %>%
+  select(-`Trait detail`) %>%
+  relocate(Dataset, `Genera (n)`, `Plots (n)`, `Plots after (n)`, 
+           `Coverage meta-community (%)` ) %>%
+  arrange(Dataset)
+
+#Table A1.
+write_xlsx(data_summary_species, path = "docs/tableA1_meta_data_all_species.xlsx")
+#Table A2.
+write_xlsx(data_summary_genus, path = "docs/tableA2_meta_data_all_genus.xlsx")
+
+```
+
+#Table E6. 
+```{r metadata study - traits_na - RMSE - OUTPUT ALTERATIONS }
+
+traits_na2 <- traits_na %>%
+  mutate(perc_na = na_count/total_count) %>%
+  mutate(study_group = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$study_group[match(study,
+                       study_names_df$study)], TRUE ~ study)) %>%
+  mutate(study = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$new_study_name[match(study,
+                       study_names_df$study)], TRUE ~ study)) %>%
+   mutate(perc_na = perc_na*100) %>%
+  mutate(perc_present = round(100-perc_na, digits = 0)) %>%
+  mutate(trait_perc = paste0(TraitName, " (", perc_present, "%")) %>%
+  select(-study_group, -na_count, -total_count, 
+         TraitName, -perc_na, perc_present) 
+
+
+traits_info <- traits_rmse %>%
+ mutate(study_group = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$study_group[match(study,
+                       study_names_df$study)], TRUE ~ study))  %>%
+ mutate(study = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$new_study_name[match(study,
+                       study_names_df$study)], TRUE ~ study)) %>%
+   mutate(SQ_ER = (Orig_values - Try_values)^2) %>%
+    select(-c(Orig_values, Try_values)) %>%
+    group_by(TraitName, study) %>%
+    summarise(MSE = mean(SQ_ER)) %>%
+    ungroup() %>%
+    mutate(RMSE = sqrt(MSE)) %>%
+    select(-MSE) %>%
+    full_join(traits_na2) %>%
+    mutate(trait_info = paste0(trait_perc, " - ", round(RMSE, digits = 2), ")")) %>%
+    select(study, trait_info)
+
+
+traits_missing_per_study <- data.frame(index = 1:13)
+study_list <- unique(traits_na2$study)
+
+for(i in 1:length(study_list)){
+  
+one_study <- traits_info %>%
+  filter(study == study_list[i]) %>%
+  arrange(trait_info) %>%
+  rename(!!study_list[i] := trait_info) %>%
+  select(-study) 
+
+if(nrow(one_study) < 13){
+  for(j in (nrow(one_study)+1):13){
+    
+    one_study[j,] <- NA
+          }
+    }
+  
+traits_missing_per_study <- cbind(traits_missing_per_study, one_study)  
+  
+}
+
+traits_missing_per_study <- traits_missing_per_study %>%
+  select(-index) %>%
+  select(order(colnames(.))) %>% t() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "Dataset") %>%
+  filter(Dataset %notin% c("Gonzalez (Ca)", "Gonzalez (Ch)", "Gonzalez (Co)", "Gonzalez (Pa)", 
+                          "Gonzalez (Pe)", "Osuri (Fragment)")) 
+#Table E6.
+write_xlsx(traits_missing_per_study, path = "docs/tableE6_traits_missing_per_study.xlsx")
+```
+
+#Figure E3
+```{r rmse traits}
+try_species_trait_list <- try_traits_tax_final %>%
+  select(wfo_match, TraitName) %>%
+  distinct() %>%
+  mutate(TraitName = case_when(
+  TraitName %in% trait_names_df$TraitName ~ trait_names_df$Abbreviation[match(TraitName,
+  trait_names_df$TraitName)],
+  TRUE ~ TraitName)) %>%
+  mutate(imp = "No"  ) %>%
+  filter(TraitName %notin% not_included_traits) %>%
+  rename(Name = wfo_match) %>%
+  filter(Name %in% traits_rmse$Name)
+
+traits_rmse_imp_notimp <- traits_rmse %>%
+  left_join(try_species_trait_list) %>%
+  mutate_all(~ ifelse(is.na(.), "Yes", .)) %>%
+mutate(study_group = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$study_group[match(study,
+                       study_names_df$study)], TRUE ~ study))  %>%
+mutate(study = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$new_study_name[match(study,
+                       study_names_df$study)], TRUE ~ study)) %>%
+ filter(study %notin% c("Gonzalez (Ca)", "Gonzalez (Ch)", "Gonzalez (Co)", "Gonzalez (Pa)", 
+                          "Gonzalez (Pe)", "Osuri (Fragment)"))
+
+
+traits_rmse_imp_notimp2 <- traits_rmse_imp_notimp %>%
+  mutate(SQ_ER = (Orig_values - Try_values)^2) %>%
+    select(-c(Orig_values, Try_values)) %>%
+    mutate(plot_study = paste(Plot_code, study)) %>%
+    group_by(plot_study, study_group, imp, TraitName) %>%
+    summarise(MSE = mean(SQ_ER)) %>%
+    ungroup() %>%
+    group_by(study_group, imp) %>%
+    summarise(MSE = mean(MSE)) %>%
+    ungroup() %>%
+    mutate(RMSE = sqrt(MSE)) %>%
+    select(-MSE) %>%
+    mutate(RMSE_log = log(RMSE))
+
+stat.test <- traits_rmse_imp_notimp2 %>%
+  pairwise_t_test(
+    RMSE_log ~ imp, paired = TRUE, detailed = T) 
+
+traits_rmse_imp_notimp_temp <- traits_rmse_imp_notimp2 %>%
+    select(-RMSE) %>%
+    pivot_wider(names_from = imp, values_from = RMSE_log) %>%
+    mutate(diff = No-Yes)
+
+boxplot(traits_rmse_imp_notimp_temp$diff)
+
+shapiro.test(traits_rmse_imp_notimp_temp$diff)
+
+qqnorm(traits_rmse_imp_notimp_temp$diff)
+qqline(traits_rmse_imp_notimp_temp$diff)
+
+t_testRMSEimpnotimp <- ggplot(traits_rmse_imp_notimp2, aes(x = imp, y = (RMSE))) +
+  geom_boxplot(aes(fill = imp)) +
+   labs(title = NULL,
+       x = NULL,
+       y = "Averaged RMSE",
+       fill = "Imputated") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13),
+        legend.position = "none"
+        ) +
+  guides(fill = guide_legend(nrow = 1)) +
+  stat_pvalue_manual(stat.test,  y.position = 3.9) 
+
+#Figure E3.
+jpeg("Figures/figureE3_t_testRMSEimpnotimp206.jpeg",  width = 1000, height = 1000, units = "px", res = 300)
+plot(t_testRMSEimpnotimp)
+dev.off()
+
+```
+
+#Figure A1. 
+```{r coverages}
+
+coverage_all <- data.frame()
+
+for(i in 1:length(data_input_list)){
+
+  dataset <- data_input_list[[i]]
+  
+  extract <- new_names_synonyms %>%
+      filter(study == dataset[["study_name"]])
+
+  not_included_traits <- c("Leaf_angle", "Photo_path", "Root_density", "Lateral_spread",
+                         "Resprout", "Bark_thickness_rel", "Rhizome", "Stem_emerg",
+                         "ShootDMC", "Leaf_shape", "twFWC", "FWC")
+
+  traits_orig <- dataset[["trait_information"]][["traitlist"]]
+
+  traits_filtered <- traits_orig[traits_orig %notin% not_included_traits]  
+
+  traitlist <- sort(c(traits_filtered))
+  cwm_names <- paste0(traitlist, "_cwm")
+  cwv_names <- paste0(traitlist, "_cwv")
+
+  trait_information <- lst(traitlist, cwm_names, cwv_names)
+
+  if(nrow(extract) > 0){
+  
+  input_veg <- dataset[["input_veg"]]  %>%
+    rename(!!!setNames(extract$Orig_name, extract$Name)) %>%
+    select(order(colnames(.)))
+  
+  input_trait <- dataset[["input_trait"]]  %>%
+    mutate(Name = case_when(
+      Name %in% extract$Orig_name ~ extract$Name[match(Name, extract$Orig_name)],
+      TRUE ~ Name)) %>%
+    arrange(Name)
+  } else {
+  
+  input_veg <- dataset[["input_veg"]] 
+  input_trait <- dataset[["input_trait"]]
+    
+  }
+
+  input_trait_try <- input_trait %>%
+    filter(Name %in% trait_imp_specieslvl$Name)
+
+  veg_data <- list()
+  
+  veg_data$matrix <-  input_veg
+  
+  trait_data <-  input_trait %>%
+    filter(Name %in% trait_imp_specieslvl$Name)
+  
+  # add a matrix of proportional abundances (abundances divided by total site abundances)
+  veg_data$matrix_prop <- veg_data$matrix / rowSums(veg_data$matrix)
+  
+  # add a matrix of proportional abundances that is cut down to species that are matched in trait the data
+  veg_data$matrix_prop_match <- veg_data$matrix_prop[, colnames(veg_data$matrix_prop) %in% 
+                                trait_data$Name]
+  
+  veg_data$matrix_prop_match_try <- veg_data$matrix_prop[, colnames(veg_data$matrix_prop) %in% 
+                                input_trait_try$Name]
+  
+
+  coverage <- rowSums(veg_data$matrix_prop_match) %>% 
+    as.data.frame() %>%
+    rename(Coverage = ".") %>%
+    rownames_to_column(var = "Plot_code") %>%
+    mutate(study = dataset[["study_name"]])
+
+  coverage_per_plot <- rowSums(veg_data$matrix_prop_match_try) %>% 
+    as.data.frame() %>%
+    rename(coverage_try = ".") %>%
+    rownames_to_column(var = "Plot_code") %>%
+    mutate(study = dataset[["study_name"]]) %>%
+    full_join(coverage)
+
+  coverage_all <- bind_rows(coverage_all, coverage_per_plot)
+}
+
+coverage_all_fig <- coverage_all %>%
+  relocate(Plot_code, study) %>%
+  pivot_longer(cols = 3:4, names_to = "coverage", values_to = "value") %>%
+  filter(coverage == "Coverage") %>%
+  mutate(value = value* 100) %>%
+  mutate(study = case_when(study %in% study_names_df$study ~ 
+                       study_names_df$new_study_name[match(study,
+                       study_names_df$study)], TRUE ~ study))
+
+trait_coverages_per_plot <- ggplot(coverage_all_fig, 
+                             aes(x = study, y = value, colour = study)) +
+                            geom_boxplot() +
+  geom_hline(yintercept = 60, color = "black", linetype = "dashed", linewidth = 1) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 14),
+        axis.title.y = element_text(size = 14)) +
+  theme(legend.position = "none") +
+  guides(color = guide_legend(nrow = 5)) +
+  labs(y = "Trait coverage (%)", x = NULL, colour = "Dataset") +
+   scale_colour_viridis_d(option = "H")
+
+jpeg("Figures/FigureA1_trait_coverages_per_plot.jpeg",  width = 2300, height = 1300, units = "px", res = 300)
+plot(trait_coverages_per_plot) #Figure A1.
+dev.off()
+
+
+```
+
+
+```{r save files needed for meta-analysis_CATS}
+save(data_summary_species, data_summary_genus, trait_imp_genuslvl, trait_imp_specieslvl,
+     new_names_synonyms, study_names_df, data_input_list_save,
+ file = "data/processed/meta_analysis_exploration126.RData")
+
+
+```
